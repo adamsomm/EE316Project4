@@ -1,7 +1,7 @@
 import serial
 import time
 
-PORT = 'COM3'          # Replace with your actual COM port
+PORT = 'COM1'         # Replace with your actual COM port
 BAUD_RATE = 9600       # Ensure this matches your settings
 
 try:
