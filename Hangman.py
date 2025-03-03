@@ -5,6 +5,9 @@ class Hangman:
     def __init__(self, word):
         self.word = word.lower()
         self.guessed = ['_' for _ in word]
+        for i, char in enumerate(self.word):
+                if char == " ":
+                    self.guessed[i] = " "
         self.letterBank = []
         self.remainingGuesses = 8
         self.is_game_over = False
