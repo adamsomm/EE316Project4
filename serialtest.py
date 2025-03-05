@@ -1,8 +1,8 @@
 import serial
 import time
 
-PORT = 'COM5'          # Replace with your actual COM port
-BAUD_RATE = 9600       # Ensure this matches PuTTY settings
+PORT = 'COM3'          # Replace with your actual COM port
+BAUD_RATE = 9600       # Ensure this matches your settings
 
 try:
     ser = serial.Serial(PORT, BAUD_RATE, timeout=1)
