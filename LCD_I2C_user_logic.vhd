@@ -5,15 +5,15 @@ use ieee.std_logic_unsigned.all;
 use IEEE.numeric_std.all;
 
 entity LCD_I2C_user_logic is
-generic (
-      input_clk : integer := 50_000_000; --input clock speed from user logic in Hz
-      bus_clk   : integer := 100_000); --speed the i2c bus (scl) will run at in Hz
+  generic (
+    input_clk : integer := 125_000_000; --input clock speed from user logic in Hz
+    bus_clk   : integer := 50_000); --speed the i2c bus (scl) will run at in Hz
   port (
     clk   : in std_logic;
-    reset : in std_logic := '1';
-    MODE  : in std_logic_vector(2 downto 0) := "000";
-    scl   : inout std_logic;
-    sda   : inout std_logic
+    reset : in std_logic;
+    --    data_in : in std_logic_vector(31 downto 0);
+    scl : inout std_logic;
+    sda : inout std_logic
 
   );
 end LCD_I2C_user_logic;
@@ -24,8 +24,8 @@ architecture user_logic of LCD_I2C_user_logic is
 
   component i2c_master is
     generic (
-      input_clk : integer := 50_000_000; --input clock speed from user logic in Hz
-      bus_clk   : integer := 100_000); --speed the i2c bus (scl) will run at in Hz
+      input_clk : integer := 125_000_000; --input clock speed from user logic in Hz
+      bus_clk   : integer := 50_000); --speed the i2c bus (scl) will run at in Hz
     -- ADC runs at 400,000, lcd at 100k max 
     port (
       clk       : in std_logic; --system clock
@@ -44,8 +44,8 @@ architecture user_logic of LCD_I2C_user_logic is
     port (
       clk      : in std_logic;
       reset    : in std_logic;
-      nextByte : in integer;
-      mode     : in std_logic_vector(2 downto 0);
+      busy     : in std_logic;
+      data_in  : in std_logic_vector(127 downto 0);
       data_out : out std_logic_vector(7 downto 0)
     );
   end component;
@@ -53,30 +53,29 @@ architecture user_logic of LCD_I2C_user_logic is
 
   signal LCD_Data : std_logic_vector(7 downto 0) := (others => '0');
 
-  signal cont        : unsigned(27 downto 0)        := X"0FC4B40";
+  signal cont        : unsigned(27 downto 0)        := X"0003FFF";
   signal slave_addr  : std_logic_vector(6 downto 0) := "0100111"; -- 0x27 in 7-bit
   signal i2c_addr    : std_logic_vector(6 downto 0);
   signal i2c_rw      : std_logic                    := '0';
-  signal i2c_ena : std_logic := '0';
+  signal i2c_ena     : std_logic                    := '0';
   signal i2c_data_wr : std_logic_vector(7 downto 0) := (others => '0');
-  signal nextByte    : integer range 0 to 5 := 0;
   type state_type is (start, write);
-  signal state   : state_type;
-  signal rst     : std_logic := '0';
+  signal state   : state_type := start;
+  signal rst     : std_logic  := '0';
   signal reset_M : std_logic;
   signal reset_D : std_logic := '0';
-  signal oldBusy : std_logic := '0';
   signal busy    : std_logic;
+  signal data_in : std_logic_vector(127 downto 0) := X"48616E675F5F5F5F4D616E2020202020";
   -- -----------------------------------------------------------------------------------------------------------------------------------
 begin
   reset_M <= not reset or not rst; -- active low
   reset_D <= not reset_M; -- active high
-  i2c_rw <= '0';
+  i2c_rw  <= '0';
 
   inst_i2cMaster : i2c_master
   generic map(
-    input_clk => 50_000_000, --input clock speed from user logic in Hz
-    bus_clk   => 100_000) --speed the i2c bus (scl) will run at in Hz
+    input_clk => 125_000_000, --input clock speed from user logic in Hz
+    bus_clk   => 50_000) --speed the i2c bus (scl) will run at in Hz
   port map
   (
     clk       => clk, --system clock
@@ -96,8 +95,8 @@ begin
   (
     clk      => clk,
     reset    => reset_D,
-    nextByte => nextByte,
-    mode     => MODE,
+    busy     => busy,
+    data_in  => data_in,
     data_out => LCD_Data
   );
 
@@ -105,41 +104,25 @@ begin
   begin
     if reset = '1' then
       rst         <= '1';
-      cont        <= X"0FC4B40";
+      cont        <= X"0003FFF";
       i2c_addr    <= slave_addr;
       i2c_data_wr <= (others => '0');
-      oldBusy     <= '0';
       i2c_ena     <= '0';
-      nextByte    <= 0;
       state       <= start;
-    
-    elsif (rising_edge(Clk)) then
-      oldBusy <= busy;
-      if (oldBusy = '1' and busy = '0' and state = write) then -- next byte logic
-        if (nextByte < 5) then
-          nextByte <= nextByte + 1;
-        else
-          nextByte <= 0;
-        end if;
-      end if;
-
+    elsif rising_edge(clk) then
       case state is
-        when start =>  
+        when start =>
           if (cont /= X"0000000") then
-            cont    <= cont - 1;
-            rst     <= '1';
-            state   <= start;
-            i2c_ena <= '0';
+            cont  <= cont - 1;
+            rst   <= '1';
+            state <= start;
           else
-            rst         <= '0';
-            i2c_ena     <= '1';
-            i2c_addr    <= slave_addr;
-            i2c_data_wr <= LCD_Data;
-				nextByte <= 0;
-            state       <= write;
+            rst      <= '0';
+            i2c_ena  <= '1';
+            i2c_addr <= slave_addr;
+            state    <= write;
           end if;
         when write =>
-          i2c_addr    <= slave_addr;
           i2c_data_wr <= LCD_Data;
           state       <= write;
         when others =>
