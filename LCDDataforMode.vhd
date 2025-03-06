@@ -23,18 +23,18 @@ architecture Behavioral of LCDDataSelect is
   signal data           : std_logic_vector(7 downto 0);
   signal counter        : integer := 0;
   signal LCD_DATA       : std_logic_vector(3 downto 0);
-  signal byteSel        : integer range 1 to 89 := 1;
+  signal byteSel        : integer range 1 to 90 := 1;
   signal oldBusy        : std_logic;
   signal dataCount      : integer range 1 to 6         := 1;
   signal prevDataCount  : integer range 1 to 6         := 1;
   --signal MODE           : std_logic_vector(2 downto 0) := "001";
   signal scroll_counter : integer                      := 0;
-  signal scroll_delay   : integer                      := 2500; -- Adjust for smoother or faster scroll
+  signal scroll_delay   : integer                      := 400; -- Adjust for smoother or faster scroll
   signal GAMECOUNT      : integer                      := 0;
   signal WINCOUNT       : integer                      := 0;
   signal WINCOUNThex    : std_logic_vector(7 downto 0) := X"00";
   signal GAMECOUNThex   : std_logic_vector(7 downto 0) := X"00";
-  signal MODEprev       : std_logic_vector(2 downto 0);
+  signal MODEprev       : std_logic_vector(2 downto 0)  := "000";
 
   --  type Win is array (0 to 42) of std_logic_vector(8 downto 0);
   --  constant lcd_Win : Win := (
@@ -68,7 +68,7 @@ architecture Behavioral of LCDDataSelect is
   type Active is array (0 to 15) of std_logic_vector(8 downto 0);
   signal lcd_Active : Active := (others => (others => '0')); -- Correct signal declaration
 
-  type Win is array (0 to 43) of std_logic_vector(8 downto 0);
+  type Win is array (0 to 44) of std_logic_vector(8 downto 0);
   signal lcd_Win : Win := (others => (others => '0'));
 
   type Loss is array (0 to 78) of std_logic_vector(8 downto 0);
@@ -79,7 +79,7 @@ begin
   LCD_BL   <= '1';
   data_out <= LCD_DATA & LCD_BL & LCD_EN & LCD_RW & LCD_RS;
 
-  process (clk)
+  process (clk,GAMECOUNThex)
   begin
     if rising_edge(clk) then
 
@@ -128,24 +128,24 @@ begin
       lcd_Loss(24) <= '1' & X"77"; -- 'w'
       lcd_Loss(25) <= '1' & X"61"; -- 'a'
       lcd_Loss(26) <= '1' & X"73"; -- 's'
-      lcd_Loss(27) <= '1' & data_in(127 downto 120); -- inserting data_in values
-      lcd_Loss(28) <= '1' & data_in(119 downto 112);
-      lcd_Loss(29) <= '1' & data_in(111 downto 104);
-      lcd_Loss(30) <= '1' & data_in(103 downto 96);
-      lcd_Loss(31) <= '1' & data_in(95 downto 88);
-      lcd_Loss(32) <= '1' & data_in(87 downto 80);
-      lcd_Loss(33) <= '1' & data_in(79 downto 72);
-      lcd_Loss(34) <= '1' & data_in(71 downto 64);
-      lcd_Loss(35) <= '1' & data_in(63 downto 56);
-      lcd_Loss(36) <= '1' & data_in(55 downto 48);
-      lcd_Loss(37) <= '1' & data_in(47 downto 40);
-      lcd_Loss(38) <= '1' & data_in(39 downto 32);
-      lcd_Loss(39) <= '1' & data_in(31 downto 24);
-      lcd_Loss(40) <= '1' & data_in(23 downto 16);
-      lcd_Loss(41) <= '1' & data_in(15 downto 8);
-      lcd_Loss(42) <= '1' & data_in(7 downto 0);
-      lcd_Loss(43) <= '1' & X"2E"; -- '.'
-      lcd_Loss(44) <= '1' & X"20"; -- space
+      lcd_Loss(27) <= '1' & X"20"; -- ' '
+      lcd_Loss(28) <= '1' & data_in(127 downto 120); -- inserting data_in values
+      lcd_Loss(29) <= '1' & data_in(119 downto 112);
+      lcd_Loss(30) <= '1' & data_in(111 downto 104);
+      lcd_Loss(31) <= '1' & data_in(103 downto 96);
+      lcd_Loss(32) <= '1' & data_in(95 downto 88);
+      lcd_Loss(33) <= '1' & data_in(87 downto 80);
+      lcd_Loss(34) <= '1' & data_in(79 downto 72);
+      lcd_Loss(35) <= '1' & data_in(71 downto 64);
+      lcd_Loss(36) <= '1' & data_in(63 downto 56);
+      lcd_Loss(37) <= '1' & data_in(55 downto 48);
+      lcd_Loss(38) <= '1' & data_in(47 downto 40);
+      lcd_Loss(39) <= '1' & data_in(39 downto 32);
+      lcd_Loss(40) <= '1' & data_in(31 downto 24);
+      lcd_Loss(41) <= '1' & data_in(23 downto 16);
+      lcd_Loss(42) <= '1' & data_in(15 downto 8);
+      lcd_Loss(43) <= '1' & data_in(7 downto 0);
+      lcd_Loss(44) <= '0' & X"C0"; -- space
       lcd_Loss(45) <= '1' & X"59"; -- 'Y'
       lcd_Loss(46) <= '1' & X"6F"; -- 'o'
       lcd_Loss(47) <= '1' & X"75"; -- 'u'
@@ -180,6 +180,8 @@ begin
       lcd_Loss(76) <= '1' & X"66"; -- 'f'
       lcd_Loss(77) <= '1' & X"20"; -- space
       lcd_Loss(78) <= '1' & GAMECOUNThex; -- GAMECOUNThex value
+--      lcd_Loss(78) <= '1' & X"31";
+      
       lcd_Win(0)   <= '1' & X"57"; -- W
       lcd_Win(1)   <= '1' & X"65"; -- e
       lcd_Win(2)   <= '1' & X"6C"; -- l
@@ -190,7 +192,7 @@ begin
       lcd_Win(7)   <= '1' & X"6E"; -- n
       lcd_Win(8)   <= '1' & X"65"; -- e
       lcd_Win(9)   <= '1' & X"21"; -- !
-      lcd_Win(10)  <= '1' & X"20"; -- (space)
+      lcd_Win(10)  <= '0' & X"C0"; -- (next line)
       lcd_Win(11)  <= '1' & X"59"; -- Y
       lcd_Win(12)  <= '1' & X"6F"; -- o
       lcd_Win(13)  <= '1' & X"75"; -- u
@@ -220,10 +222,13 @@ begin
       lcd_Win(37)  <= '1' & X"6F"; -- o
       lcd_Win(38)  <= '1' & X"75"; -- u
       lcd_Win(39)  <= '1' & X"74"; -- t
+      
+      
       lcd_Win(40)  <= '1' & X"20"; -- (space)
       lcd_Win(41)  <= '1' & X"6F"; -- o
       lcd_Win(42)  <= '1' & X"66"; -- f
-      lcd_Win(43)  <= '1' & GAMECOUNThex; -- M (variable)
+      lcd_Win(43)  <= '1' & X"20";
+      lcd_Win(44)  <= '1' & GAMECOUNThex; -- M (variable)
     end if;
   end process;
 
@@ -269,6 +274,13 @@ begin
           LCD_RS   <= RS;
       end case;
 
+      MODEprev <= MODE;
+      if MODEprev /= MODE then
+        byteSel        <= 1;
+        dataCount      <= 1;
+        prevDataCount  <= 1;
+      end if;
+
       if oldBusy = '1' and busy = '0' then
         if dataCount < 6 then
           dataCount <= dataCount + 1;
@@ -276,45 +288,42 @@ begin
           dataCount <= 1;
         end if;
         prevDataCount <= dataCount;
-        MODEprev      <= MODE;
-        if MODEprev /= MODE then
-          byteSel <= 6;
-        end if;
+
         if dataCount = 1 and prevDataCount = 6 then
-          MODEprev      <= MODE;
-          if MODEprev /= MODE then
-          byteSel <= 6;
-          end if;
           if byteSel < 25 then
             byteSel <= byteSel + 1;
-            --LCD_RS <= RS; bad, updates 1 cycle late 
-            --          elsif byteSel > 25 and MODE = ("110" or "101") then --win or lose
-            --            byteSel <= byteSel + 1;
-            --            if MODE = "101" and byteSel > 88 then
-            --              byteSel <= 89;
-            --              if scroll_counter < scroll_delay then
-            --                scroll_counter <= scroll_counter + 1;
-            --                data           <= X"00";
-            --                RS             <= '0';
-            --              else
-            --                scroll_counter <= 0; -- Reset counter
-            --                byteSel        <= 89;
-            --              end if;
-            --            elsif MODE = "110" and byteSel > 52 then
-            --              byteSel <= 89;
-            --              if scroll_counter < scroll_delay then
-            --                scroll_counter <= scroll_counter + 1;
-            --                data           <= X"00";
-            --                RS             <= '0';
-            --              else
-            --                scroll_counter <= 0; -- Reset counter
-            --                byteSel        <= 89;
-            --              end if;
-            --            end if;
+          elsif byteSel >= 25 then
+            byteSel <= byteSel + 1;
+
+            case MODE is
+              when "110" =>
+                if byteSel > 53 then
+                  
+                  if scroll_counter < scroll_delay then
+                    scroll_counter <= scroll_counter + 1;
+                    byteSel <= 90;
+                  else
+                    scroll_counter <= 0; -- Reset counter
+                    byteSel        <= 89;
+                  end if;
+                end if;
+              when "101" =>
+                if byteSel > 87 then
+                  
+                  if scroll_counter < scroll_delay then
+                    scroll_counter <= scroll_counter + 1;
+                    byteSel <= 90;
+                  else
+                    scroll_counter <= 0; -- Reset counter
+                    byteSel        <= 89;
+                  end if;
+                end if;
+              when others =>
+                byteSel <= 9; -- Reset to 1 (back to the start)
+            end case;
           else
             byteSel <= 9; -- Reset to 1 (back to the start)
           end if;
-
         end if;
       end if;
     end if;
@@ -358,12 +367,12 @@ begin
           when "111" => -- game over
             RS   <= lcd_GameOver(byteSel - 10)(8);
             data <= lcd_GameOver(byteSel - 10)(7 downto 0);
-            --          when "110" => -- win
-            --            RS   <= lcd_Win(byteSel - 10)(8);
-            --            data <= lcd_Win(byteSel - 10)(7 downto 0);
-            --          when "101" => -- loss
-            --            RS   <= lcd_Loss(byteSel - 10)(8);
-            --            data <= lcd_Loss(byteSel - 10)(7 downto 0);
+          when "110" => -- win
+            RS   <= lcd_Win(byteSel - 10)(8);
+            data <= lcd_Win(byteSel - 10)(7 downto 0);
+          when "101" => -- loss
+             RS   <= lcd_Loss(byteSel - 10)(8);
+             data <= lcd_Loss(byteSel - 10)(7 downto 0);
           when "001" => -- word
             RS   <= lcd_Active(byteSel - 10)(8);
             data <= lcd_Active(byteSel - 10)(7 downto 0);
@@ -378,14 +387,29 @@ begin
       when 89 =>
         RS   <= '0';
         data <= X"18";
+      when 90 => 
+        RS <= '0';
+        data <= X"00";
 
       when others =>
         data <= X"28";
         RS   <= '0'; -- Default command
     end case;
   end process;
-  process (WINCOUNT, GAMECOUNT)
+  
+  process(clk)
   begin
+  if reset = '1'then
+    GAMECOUNT <= 0;
+    WINCOUNT <= 0;
+  elsif rising_edge(clk) then
+    if MODEprev = "001" and MODE = "101" then
+        GAMECOUNT <= GAMECOUNT + 1;
+    elsif MODEprev = "001" and MODE = "110" then
+        GAMECOUNT <= GAMECOUNT + 1;
+        WINCOUNT <= WINCOUNT + 1;
+    end if;
+  end if;
     WINCOUNThex  <= std_logic_vector(to_unsigned(48 + WINCOUNT, WINCOUNThex'length));
     GAMECOUNThex <= std_logic_vector(to_unsigned(48 + GAMECOUNT, GAMECOUNThex'length));
   end process;

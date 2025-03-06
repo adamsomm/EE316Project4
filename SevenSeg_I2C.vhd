@@ -1,22 +1,22 @@
-IBRARY ieee;
+lIBRARY ieee;
 USE ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 USE ieee.std_logic_unsigned.all;
 
-entity i2c_user_logic is
+entity SevenSeg_I2C is
 PORT(
     clk       : IN         STD_LOGIC;                    --system clock
     reset     : IN         STD_LOGIC;
 	--iData     : IN         STD_LOGIC_vector(15 downto 0);
     sda       : INOUT  STD_LOGIC;                    --serial data output of i2c bus
     scl       : INOUT  STD_LOGIC);                   --serial clock output of i2c bus
-end i2c_user_logic;
+end SevenSeg_I2C;
 
-ARCHITECTURE logic OF i2c_user_logic IS
+ARCHITECTURE logic OF SevenSeg_I2C IS
 
 component i2c_master IS
   GENERIC(
-    input_clk : INTEGER := 50_000_000; --input clock speed from user logic in Hz
+    input_clk : INTEGER := 125_000_000; --input clock speed from user logic in Hz
     bus_clk   : INTEGER := 50_000);   --speed the i2c bus (scl) will run at in Hz
   PORT(
     clk       : IN     STD_LOGIC;                    --system clock
