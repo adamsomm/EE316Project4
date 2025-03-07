@@ -13,6 +13,8 @@ entity TopLevel is
     LCDscl   : inout std_logic;
     Sevsda   : inout std_logic;
     Sevscl   : inout std_logic;
+    TX_in    : in std_logic;
+    RX_out   : out std_logic;
     -- Add other ports as needed - uart
   );
 end TopLevel;
@@ -123,8 +125,14 @@ begin
 --   if internal_reset = '1' or reset_Mode = '1' then
 --       Data_s <= "0006";
 --       olduartSeven <= '0';
---   if rising_edge(iCLK) then
+--   elsif rising_edge(iCLK) then
 --     if uartSeven = '1' and olduartSeven = '0' then
---       Data_s <= Data_s - 1;
+--       case Data_s is 
+--            when "0000" => Data <= "0006";
+--            when others => data <= Data_s-1;
+--       end case;
+--  end if;
+--end if;
+
 -- end process;
   end Behavioral; 
