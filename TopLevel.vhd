@@ -78,8 +78,8 @@ begin
       clk      => iCLK,
       ps2_clk  => ps2_clk,
       ps2_data => ps2_data,
-      final_data =>,-- load into uart
-      newDataPulse =>--load into uart
+      final_data = >, -- load into uart
+      newDataPulse => --load into uart
     );
 
   reset_delay_inst : reset_delay
@@ -112,11 +112,19 @@ begin
   (
     clk   => iCLK,
     reset => internal_reset,
-    mode = >,-- 3 bit data from uart user logic
-    data_in = >,--3 bit data from uart user logic
+    mode = >, -- 3 bit data from uart user logic
+    data_in = >, --3 bit data from uart user logic
     scl => LCDscl,
     sda => LCDsda
   );
-  -- Process declarations
-
-end Behavioral;
+  -- Process declaration for seven segment incrementing logic based on uart
+-- process (iCLK, internal_reset)
+-- begin
+--   if internal_reset = '1' or reset_Mode = '1' then
+--       Data_s <= "0006";
+--       olduartSeven <= '0';
+--   if rising_edge(iCLK) then
+--     if uartSeven = '1' and olduartSeven = '0' then
+--       Data_s <= Data_s - 1;
+-- end process;
+  end Behavioral; 
