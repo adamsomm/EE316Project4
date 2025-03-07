@@ -43,11 +43,11 @@ architecture Behavioral of TopLevel is
       bus_clk   : integer := 400_000); --speed the i2c bus (scl) will run at in Hz
 
     port (
-      clk   : in std_logic;
-      reset : in std_logic;
-      dataIn : in STD_LOGIC_VECTOR (15 downto 0):= X"0001";
-      sda : inout std_logic;
-      scl : inout std_logic
+      clk    : in std_logic;
+      reset  : in std_logic;
+      dataIn : in std_logic_vector (15 downto 0) := X"0001";
+      sda    : inout std_logic;
+      scl    : inout std_logic
     );
   end component;
 
@@ -58,9 +58,9 @@ architecture Behavioral of TopLevel is
     port (
       clk   : in std_logic; --system clock
       reset : in std_logic;
-      iData     : IN         STD_LOGIC_vector(127 downto 0);
-      sda : inout std_logic; --serial data output of i2c bus
-      scl : inout std_logic
+      iData : in std_logic_vector(127 downto 0);
+      sda   : inout std_logic; --serial data output of i2c bus
+      scl   : inout std_logic
       -- Add other ports as needed
     );
   end component;
@@ -78,8 +78,8 @@ begin
       clk      => iCLK,
       ps2_clk  => ps2_clk,
       ps2_data => ps2_data,
-      final_data =>,
-      newDataPulse =>
+      final_data =>,-- load into uart
+      newDataPulse =>--load into uart
     );
 
   reset_delay_inst : reset_delay
@@ -112,11 +112,11 @@ begin
   (
     clk   => iCLK,
     reset => internal_reset,
-    mode = >,
-    data_in = >,
+    mode = >,-- 3 bit data from uart user logic
+    data_in = >,--3 bit data from uart user logic
     scl => LCDscl,
     sda => LCDsda
   );
   -- Process declarations
-  
+
 end Behavioral;
