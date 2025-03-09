@@ -72,6 +72,8 @@ attribute mark_debug of ps2_clk  : signal is "true";
       ps2_code     : OUT STD_LOGIC_VECTOR(7 DOWNTO 0)); --code received from PS/2
   END COMPONENT;
 
+    signal newflag : std_logic :='0';
+
 BEGIN
 
   --instantiate PS2 keyboard interface logic
@@ -80,6 +82,7 @@ BEGIN
     PORT MAP(clk => clk, ps2_clk => ps2_clk, ps2_data => ps2_data, ps2_code_new => ps2_code_new, ps2_code => ps2_code);
 
   PROCESS(clk)
+  variable count : integer range 0 to 13020 := 0;  -- Counter for 13,021 clock cycles
   BEGIN
     IF(clk'EVENT AND clk = '1') THEN
       prev_ps2_code_new <= ps2_code_new; --keep track of previous ps2_code_new values to determine low-to-high transitions
@@ -314,23 +317,29 @@ BEGIN
         WHEN output =>
           IF(ascii(7) = '0') THEN            --the PS2 code has an ASCII output
             ascii_new <= '1';                  --set flag indicating new ASCII output
+            newflag <= '1';
             ascii_code <= '0' & ascii(6 DOWNTO 0);   --output the ASCII value
           END IF;
           state <= ready;                    --return to ready state to await next PS2 code
 
       END CASE;
     END IF;
+    if rising_edge(clk) then
+        if ascii_new = '1' then
+            if newflag = '1' then
+                if count = 13020 then  -- End of baud rate cycle
+                    ascii_new_pulse <= '0';  -- Set baudPulse low
+                    count := 0;        -- Reset the counter
+                    newflag <= '0';
+                else
+                    ascii_new_pulse <= '1';  -- Keep baudPulse high during the cycle
+                    count := count + 1; -- Increment the counter
+                end if;
+            end if;
+        end if;
+	end if;    
+  
   END PROCESS;
-  process(clk)
-  begin
-    if (rising_edge(CLK)) then
-			btn_sync(0) <= ascii_new;
-			btn_sync(1) <= btn_sync(0);
-			ascii_new_pulse   <= not btn_sync(1) and btn_sync(0);
-	end if;
-  end process;
-
-
 END behavior;
 
 

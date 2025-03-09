@@ -113,7 +113,7 @@ signal sr_in16   : std_logic_vector(7 DOWNTO 0);
 signal clk_div   : std_logic := '0';
 signal div_cnt   : integer := 0;
 constant DIV_MAX : integer := 6510;  -- Adjust this constant if needed
-signal baudPulse : std_logic;
+--signal baudPulse : std_logic;
 signal firstpulse: std_logic;
 
 signal shiftcount       : integer range 0 to 16;
@@ -153,24 +153,24 @@ begin
     end if;
 end process;
 
-process(iclk)
-    variable count : integer range 0 to 13020 := 0;  -- Counter for 13,021 clock cycles
-begin
-    if rising_edge(iclk) then
-        -- Start the baud rate cycle on tx_pulse or if already in progress
-        if (tx_pulse = '1' or firstpulse = '1') then
-            firstpulse <= '1';  -- Indicate that the baud rate cycle is in progress
-            if count = 13020 then  -- End of baud rate cycle
-                baudPulse <= '0';  -- Set baudPulse low
-                firstpulse <= '0'; -- Reset the cycle
-                count := 0;        -- Reset the counter
-            else
-                baudPulse <= '1';  -- Keep baudPulse high during the cycle
-                count := count + 1; -- Increment the counter
-            end if;
-        end if;
-    end if;
-end process;
+--process(iclk)
+--    variable count : integer range 0 to 13020 := 0;  -- Counter for 13,021 clock cycles
+--begin
+--    if rising_edge(iclk) then
+--        -- Start the baud rate cycle on tx_pulse or if already in progress
+--        if (tx_pulse = '1' or firstpulse = '1') then
+--            firstpulse <= '1';  -- Indicate that the baud rate cycle is in progress
+--            if count = 13020 then  -- End of baud rate cycle
+--                baudPulse <= '0';  -- Set baudPulse low
+--                firstpulse <= '0'; -- Reset the cycle
+--                count := 0;        -- Reset the counter
+--            else
+--                baudPulse <= '1';  -- Keep baudPulse high during the cycle
+--                count := count + 1; -- Increment the counter
+--            end if;
+--        end if;
+--    end if;
+--end process;
 
 process(iclk, shift_trig, old_shift_trig)
 begin
@@ -192,7 +192,7 @@ uart_master_inst : uart
         txclk       => clk_div,
         ld_tx_data  => '1',
         tx_data     => tx_data,
-        tx_enable   => baudPulse,
+        tx_enable   => tx_pulse,
         tx_out      => tx,
         tx_empty    => tx_empty,
         rxclk       => clk_div,
