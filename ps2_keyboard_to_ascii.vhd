@@ -32,7 +32,7 @@ ENTITY ps2_keyboard_to_ascii IS
       ps2_clk    : IN  STD_LOGIC;                     --clock signal from PS2 keyboard
       ps2_data   : IN  STD_LOGIC;                     --data signal from PS2 keyboard
       ascii_new  : OUT STD_LOGIC;                     --output flag indicating new ASCII value
-      ascii_code : OUT STD_LOGIC_VECTOR(6 DOWNTO 0)); --ASCII value
+      ascii_code : OUT STD_LOGIC_VECTOR(7 DOWNTO 0)); --ASCII value
 END ps2_keyboard_to_ascii;
 
 ARCHITECTURE behavior OF ps2_keyboard_to_ascii IS
@@ -310,7 +310,7 @@ BEGIN
         WHEN output =>
           IF(ascii(7) = '0') THEN            --the PS2 code has an ASCII output
             ascii_new <= '1';                  --set flag indicating new ASCII output
-            ascii_code <= ascii(6 DOWNTO 0);   --output the ASCII value
+            ascii_code <= '0' & ascii(6 DOWNTO 0);   --output the ASCII value
           END IF;
           state <= ready;                    --return to ready state to await next PS2 code
 
