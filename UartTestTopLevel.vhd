@@ -10,6 +10,7 @@ entity UartTestTopLevel is
     rx       : in std_logic;
     ps2_clk  : in std_logic;
     ps2_data : in std_logic
+   -- uart_pulse: in std_logic
   );
 end UartTestTopLevel;
 
@@ -36,7 +37,7 @@ architecture behavior of UartTestTopLevel is
       clk        : in std_logic;
       ps2_clk    : in std_logic;
       ps2_data   : in std_logic;
-      ascii_new  : out std_logic;
+      ascii_new_pulse  : out std_logic;
       ascii_code : out std_logic_vector(7 downto 0)
     );
   end component;
@@ -70,7 +71,7 @@ begin
     clk        => iclk,
     ps2_clk    => ps2_clk,
     ps2_data   => ps2_data,
-    ascii_new  => uart_pulse,
+    ascii_new_pulse  => uart_pulse,
     ascii_code => uart_data
   );
 end architecture behavior;

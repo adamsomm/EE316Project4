@@ -31,7 +31,7 @@ ENTITY ps2_keyboard_to_ascii IS
       clk        : IN  STD_LOGIC;                     --system clock input
       ps2_clk    : IN  STD_LOGIC;                     --clock signal from PS2 keyboard
       ps2_data   : IN  STD_LOGIC;                     --data signal from PS2 keyboard
-      ascii_new  : OUT STD_LOGIC;                     --output flag indicating new ASCII value
+      ascii_new_pulse  : OUT STD_LOGIC;                     --output flag indicating new ASCII value
       ascii_code : OUT STD_LOGIC_VECTOR(7 DOWNTO 0)); --ASCII value
 END ps2_keyboard_to_ascii;
 
@@ -49,6 +49,10 @@ ARCHITECTURE behavior OF ps2_keyboard_to_ascii IS
   SIGNAL shift_r           : STD_LOGIC := '0';                      --'1' if right shift is held down, else '0'
   SIGNAL shift_l           : STD_LOGIC := '0';                      --'1' if left shift is held down, else '0'
   SIGNAL ascii             : STD_LOGIC_VECTOR(7 DOWNTO 0) := x"FF"; --internal value of ASCII translation
+  
+  signal btn_sync          : std_logic_vector(1 downto 0);
+  signal ascii_new   : std_logic;
+  
 
 attribute mark_debug : string; 
 attribute mark_debug of ascii_new     : signal is "true";
@@ -317,6 +321,15 @@ BEGIN
       END CASE;
     END IF;
   END PROCESS;
+  process(clk)
+  begin
+    if (rising_edge(CLK)) then
+			btn_sync(0) <= ascii_new;
+			btn_sync(1) <= btn_sync(0);
+			ascii_new_pulse   <= not btn_sync(1) and btn_sync(0);
+	end if;
+  end process;
+
 
 END behavior;
 

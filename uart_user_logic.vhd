@@ -10,6 +10,7 @@ entity uart_user_logic is   -- tx_out
 	   tx                      : out std_logic; -- tx_out will be assigned to tx pin of the controller
        rx                      : in std_logic;
        reset                   : in std_logic
+       
 	   --LCD_Data                : out std_logic_vector(127 DOWNTO 0);
 	   --Mode					   : out std_logic_vector(2 DOWNTO 0);
 	   --Seven_seg			   : out std_logic_vector(0 DOWNTO 0)
@@ -111,7 +112,9 @@ signal sr_in16   : std_logic_vector(7 DOWNTO 0);
 -- Clock divider signals
 signal clk_div   : std_logic := '0';
 signal div_cnt   : integer := 0;
-constant DIV_MAX : integer := 2604;  -- Adjust this constant if needed
+constant DIV_MAX : integer := 6510;  -- Adjust this constant if needed
+signal baudPulse : std_logic;
+signal firstpulse: std_logic;
 
 signal shiftcount       : integer range 0 to 16;
 signal rx_empty_db      : std_logic;
@@ -150,6 +153,23 @@ begin
     end if;
 end process;
 
+process(iclk)
+    variable count : integer range 0 to 6510 := 0;  -- Variable to count up to 13021
+begin
+    if rising_edge(iclk) and (tx_pulse = '1' or firstpulse = '1') then
+        firstpulse <= '1';
+        if firstpulse = '1' then
+            if count = 6510 then  -- Reached the end of the baud rate cycle
+                baudPulse <= '0';  -- Set baudPulse low at the end of the period
+                firstpulse <= '0';
+                count := 0;  -- Reset the counter
+            else
+                baudPulse <= '1';  -- Keep baudPulse high during the cycle
+                count := count + 1;  -- Increment the counter
+            end if;
+        end if;
+    end if;
+end process;
 
 process(iclk, shift_trig, old_shift_trig)
 begin
@@ -171,7 +191,7 @@ uart_master_inst : uart
         txclk       => clk_div,
         ld_tx_data  => '1',
         tx_data     => tx_data,
-        tx_enable   => tx_pulse,
+        tx_enable   => baudPulse,
         tx_out      => tx,
         tx_empty    => tx_empty,
         rxclk       => clk_div,
