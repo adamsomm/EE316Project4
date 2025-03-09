@@ -5,14 +5,14 @@ use IEEE.numeric_std.all;
 
 ENTITY I2C_user_logic IS
   GENERIC(
-    input_clk : INTEGER := 50_000_000; --input clock speed from user logic in Hz
+    input_clk : INTEGER := 125_000_000; --input clock speed from user logic in Hz
     bus_clk   : INTEGER := 50_000);   --speed the i2c bus (scl) will run at in Hz
   PORT(
     clk        : IN     STD_LOGIC;                   --system clock
 	 iReset_n   : IN     STD_LOGIC;  
     sda       : INOUT  STD_LOGIC;                    --serial data output of i2c bus
-    scl       : INOUT  STD_LOGIC;
-	 busy      : INOUT STD_LOGIC);                    --busy output of i2c bus
+    scl       : INOUT  STD_LOGIC);
+	 --busy      : INOUT STD_LOGIC);                    --busy output of i2c bus
 END I2C_user_logic;
 
 ARCHITECTURE user_logic OF I2C_user_logic IS
@@ -44,7 +44,7 @@ attribute S of i2c_data_wr: signal is "TRUE";
 
 COMPONENT i2c_master IS
   GENERIC(
-    input_clk : INTEGER := 50_000_000; --input clock speed from user logic in Hz
+    input_clk : INTEGER := 125_000_000; --input clock speed from user logic in Hz
     bus_clk   : INTEGER := 50_000);   --speed the i2c bus (scl) will run at in Hz
   PORT(
     clk       : IN     STD_LOGIC;                    --system clock
@@ -72,7 +72,7 @@ BEGIN
 
 	iData <= X"ABCD";
    slave_addr <= "1110001";
-	busy <= i2c_busy;
+	--busy <= i2c_busy;
     
 process(byteSel, iData)
  begin
@@ -98,7 +98,7 @@ end process;
       
 Inst_i2c_master: i2c_master
   GENERIC MAP(
-    input_clk => 50_000_000,       --input clock speed from user logic in Hz
+    input_clk => 125_000_000,       --input clock speed from user logic in Hz
     bus_clk   => 50_000)           --speed the i2c bus (scl) will run at in Hz
   PORT MAP(
     clk       => clk,

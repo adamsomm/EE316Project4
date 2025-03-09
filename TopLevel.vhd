@@ -43,16 +43,16 @@ architecture Behavioral of TopLevel is
     );
   end component;
 
-  component SevenSeg_I2C
+  component I2C_user_logic -- seven segment
     generic (
-      input_clk : integer := 125_000_000; --input clock speed from user logic in Hz
-      bus_clk   : integer := 400_000); --speed the i2c bus (scl) will run at in Hz
+      input_clk : INTEGER := 125_000_000;
+      bus_clk : INTEGER := 50_000
+    );
     port (
-      clk    : in std_logic;
-      reset  : in std_logic;
-      dataIn : in std_logic_vector (15 downto 0) := X"0001";
-      sda    : inout std_logic;
-      scl    : inout std_logic
+      clk : in STD_LOGIC;
+      iReset_n : in STD_LOGIC;
+      sda : inout STD_LOGIC;
+      scl : inout STD_LOGIC
     );
   end component;
 
@@ -123,6 +123,18 @@ begin
     sda   => Sevsda,
     scl   => Sevscl
   );
+  I2C_user_logic_inst : I2C_user_logic
+  generic map (
+    input_clk => 125_000_000,
+    bus_clk => 50_000
+  )
+  port map (
+    clk => iCLK,
+    iReset_n => internal_reset,
+    sda => Sevsda,
+    scl => Sevscl
+  );
+
 
   LCD_I2C_user_logic_inst : LCD_I2C_user_logic
   generic map(
