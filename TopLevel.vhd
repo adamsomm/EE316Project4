@@ -21,13 +21,17 @@ end TopLevel;
 
 architecture Behavioral of TopLevel is
   -- Component declarations
-  component ps2_Keyboard_userLogic
+  component ps2_keyboard_to_ascii
+    generic (
+      clk_freq : INTEGER := 125_000_000;
+      ps2_debounce_counter_size : INTEGER := 10 
+    );
     port (
-      clk          : in std_logic;
-      ps2_clk      : in std_logic; -- PS/2 clock input
-      ps2_data     : in std_logic; -- PS/2 data input
-      final_data   : out std_logic_vector(7 downto 0); -- Processed key code
-      newDataPulse : out std_logic := '0'
+      clk : in STD_LOGIC;
+      ps2_clk : in STD_LOGIC;
+      ps2_data : in STD_LOGIC;
+      ascii_new : out STD_LOGIC;
+      ascii_code : out STD_LOGIC_VECTOR(6 DOWNTO 0)
     );
   end component;
 
@@ -84,15 +88,19 @@ architecture Behavioral of TopLevel is
 begin
   internal_reset <= reset or reset_d;
     -- Component instantiations
-    ps2_keyboard_userLogic_inst : ps2_keyboard_userLogic
-    port map
-    (
-      clk      => iCLK,
-      ps2_clk  => ps2_clk,
-      ps2_data => ps2_data,
-      final_data => uart_datai, -- load into uart
-      newDataPulse => uart_pulse --load into uart
-    );
+    ps2_keyboard_to_ascii_inst : ps2_keyboard_to_ascii
+  generic map (
+    clk_freq => 125_000_000,
+    ps2_debounce_counter_size => 10
+  )
+  port map (
+    clk => iCLK,
+    ps2_clk => ps2_clk,
+    ps2_data => ps2_data,
+    ascii_new => uart_pulse,
+    ascii_code => uart_datai
+  );
+
 
   reset_delay_inst : reset_delay
   port map

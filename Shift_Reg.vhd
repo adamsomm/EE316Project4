@@ -11,7 +11,7 @@ entity Shift_Reg is
 		clock:		in std_logic;
 		reset :		in std_logic;
 		en: 			in std_logic;
-		sr_in:		in std_logic_vector(3 downto 0);
+		sr_in:		in std_logic_vector(7 downto 0);
 		sr_out:		out std_logic_vector(sr_depth-1 downto 0) :=(others => '0')
 	);
 end Shift_Reg;
@@ -20,8 +20,6 @@ end Shift_Reg;
 
 architecture behv of Shift_Reg is
 	signal sr : std_logic_vector(sr_depth - 1 downto 0) := (others => '0');
-
-
 	 
 begin
 
@@ -31,7 +29,7 @@ begin
 			if reset = '1' then
 				sr <= (others => '0');
 			elsif en = '1' then
-				sr <= sr_in & sr(sr_depth-1 downto 4);
+				sr <= sr_in;
 			end if;
 		end if;
 	end process;

@@ -26,7 +26,7 @@ USE ieee.std_logic_unsigned.all;
 
 ENTITY debounce IS
   GENERIC(
-    counter_size  :  INTEGER := 19); --counter size (19 bits gives 10.5ms with 50MHz clock)
+    counter_size  :  INTEGER := 20); --counter size (19 bits gives 10.5ms with 50MHz clock)
   PORT(
     clk     : IN  STD_LOGIC;  --input clock
     button  : IN  STD_LOGIC;  --input signal to be debounced
