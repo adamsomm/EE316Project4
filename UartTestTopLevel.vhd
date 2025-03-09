@@ -14,8 +14,6 @@ entity UartTestTopLevel is
 end UartTestTopLevel;
 
 architecture behavior of UartTestTopLevel is
-
-  -- Component Declaration for the Unit Under Test (UUT)
   component uart_user_logic
     port (
       tx_data   : in std_logic_vector(7 downto 0);
@@ -52,7 +50,7 @@ begin
   port map
   (
     tx_data  => uart_data,
-    tx_pulse => '0',
+    tx_pulse => uart_pulse,
     iclk     => iclk,
     tx       => tx,
     rx       => rx,

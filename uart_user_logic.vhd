@@ -8,10 +8,11 @@ entity uart_user_logic is   -- tx_out
        tx_pulse                : in std_logic;
        iclk                    : in std_logic;   
 	   tx                      : out std_logic; -- tx_out will be assigned to tx pin of the controller
-       rx                      : in std_logic_vector(7 DOWNTO 0);
-	   LCD_Data                : out std_logic_vector(127 DOWNTO 0);
-	   Mode					   : out std_logic_vector(2 DOWNTO 0);
-	   Seven_seg			   : out std_logic
+       rx                      : in std_logic;
+       reset                   : in std_logic
+	   --LCD_Data                : out std_logic_vector(127 DOWNTO 0);
+	   --Mode					   : out std_logic_vector(2 DOWNTO 0);
+	   --Seven_seg			   : out std_logic_vector(0 DOWNTO 0)
 		 );
 end uart_user_logic;
 
@@ -48,7 +49,7 @@ end component;
 
 component debounce IS
   GENERIC(
-    counter_size  :  INTEGER := 48); --counter size (19 bits gives 10.5ms with 50MHz clock)
+    counter_size  :  INTEGER := 20); --counter size (19 bits gives 10.5ms with 50MHz clock)
   PORT(
     clk     : IN  STD_LOGIC;  --input clock
     button  : IN  STD_LOGIC;  --input signal to be debounced
@@ -70,7 +71,7 @@ TYPE state_type IS (IDLE,TRANSMISSION, RECEIVER);
 signal state : state_type;
 
 -- UART SIGNALS
-signal reset : std_logic := '0';
+--signal reset : std_logic := '0';
 signal txclk : std_logic;
 signal ld_tx_data : std_logic;
 signal tx_enable : std_logic;
@@ -83,10 +84,10 @@ signal rx_enable : std_logic;
 signal rx_in    : std_logic;
 signal rx_empty : std_logic;
 
--- clock enabler
-signal clk_cnt : integer := 0;
-signal clk_en      : std_logic;
 
+signal Mode					   :  std_logic_vector(2 DOWNTO 0);
+signal Seven_seg			   :  std_logic_vector(0 DOWNTO 0);
+signal LCD_data                : std_logic_vector(127 downto 0);
 
 -- SHIFT REGISTER SIGNALS --
 signal sr_in0	  : std_logic_vector(7 DOWNTO 0);
@@ -107,28 +108,50 @@ signal sr_in14   : std_logic_vector(7 DOWNTO 0);
 signal sr_in15   : std_logic_vector(7 DOWNTO 0);
 signal sr_in16   : std_logic_vector(7 DOWNTO 0);
 
+-- Clock divider signals
+signal clk_div   : std_logic := '0';
+signal div_cnt   : integer := 0;
+constant DIV_MAX : integer := 2604;  -- Adjust this constant if needed
+
 signal shiftcount       : integer range 0 to 16;
 signal rx_empty_db      : std_logic;
 signal shift_trig       : std_logic;
 signal old_shift_trig   : std_logic;
+signal uartconcat       : std_logic_vector(7 downto 0);
+
 begin
 
 -- CLOCK ENABLER FOR TXCLK and RXCLK --
 
-Inst_clk_en :process(iCLK)
-	begin
-	if rising_edge(iCLK) then
-		if (clk_cnt = 13020) then --49999999
-			clk_cnt <= 0;
-			clk_en <= '1';
-		else
-			clk_cnt <= clk_cnt + 1;
-			clk_en <= '0';
-		end if;
-	end if;
-	end process;
+--Inst_clk_en :process(iCLK)
+--	begin
+--	if rising_edge(iCLK) then
+--		if (clk_cnt = 13020) then --49999999
+--			clk_cnt <= 0;
+--			clk_en <= '1';
+--		else
+--			clk_cnt <= clk_cnt + 1;
+--			clk_en <= '0';
+--		end if;
+--	end if;
+--	end process;
+-- Clock divider signals
 
-process(iCLK, shift_trig, old_shift_trig)
+-- Clock divider process
+process(iclk)
+begin
+    if rising_edge(iclk) then
+        if div_cnt = DIV_MAX then
+            div_cnt <= 0;
+            clk_div <= not clk_div;  -- Toggle divided clock
+        else
+            div_cnt <= div_cnt + 1;
+        end if;
+    end if;
+end process;
+
+
+process(iclk, shift_trig, old_shift_trig)
 begin
 	old_shift_trig <= shift_trig;
 	
@@ -142,17 +165,16 @@ begin
 	end if;
 end process;
 
-  
 uart_master_inst : uart
     port map(
         reset       => reset,
-        txclk       => txclk,
+        txclk       => clk_div,
         ld_tx_data  => '1',
         tx_data     => tx_data,
-        tx_enable   => tx_enable,
-        tx_out      => tx_out,
+        tx_enable   => tx_pulse,
+        tx_out      => tx,
         tx_empty    => tx_empty,
-        rxclk       => rxclk,
+        rxclk       => clk_div,
         uld_rx_data => '1',
         rx_data     => rx_data,
         rx_enable   => rx_enable,
@@ -163,7 +185,7 @@ uart_master_inst : uart
 debouncer_inst : btn_debounce_toggle
 	PORT MAP(
     BTN_I => rx_empty,
-    CLK => iCLK,
+    CLK => iclk,
     BTN_O => open, 
     TOGGLE_O => open,
     PULSE_O => shift_trig
