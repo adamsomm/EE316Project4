@@ -154,18 +154,19 @@ begin
 end process;
 
 process(iclk)
-    variable count : integer range 0 to 6510 := 0;  -- Variable to count up to 13021
+    variable count : integer range 0 to 13020 := 0;  -- Counter for 13,021 clock cycles
 begin
-    if rising_edge(iclk) and (tx_pulse = '1' or firstpulse = '1') then
-        firstpulse <= '1';
-        if firstpulse = '1' then
-            if count = 6510 then  -- Reached the end of the baud rate cycle
-                baudPulse <= '0';  -- Set baudPulse low at the end of the period
-                firstpulse <= '0';
-                count := 0;  -- Reset the counter
+    if rising_edge(iclk) then
+        -- Start the baud rate cycle on tx_pulse or if already in progress
+        if (tx_pulse = '1' or firstpulse = '1') then
+            firstpulse <= '1';  -- Indicate that the baud rate cycle is in progress
+            if count = 13020 then  -- End of baud rate cycle
+                baudPulse <= '0';  -- Set baudPulse low
+                firstpulse <= '0'; -- Reset the cycle
+                count := 0;        -- Reset the counter
             else
                 baudPulse <= '1';  -- Keep baudPulse high during the cycle
-                count := count + 1;  -- Increment the counter
+                count := count + 1; -- Increment the counter
             end if;
         end if;
     end if;
