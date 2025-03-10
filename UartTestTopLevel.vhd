@@ -9,8 +9,8 @@ entity UartTestTopLevel is
     tx       : out std_logic;
     rx       : in std_logic;
     ps2_clk  : in std_logic;
-    ps2_data : in std_logic
-   -- uart_pulse: in std_logic
+    ps2_data : in std_logic;
+    uart_pulseo: out std_logic
   );
 end UartTestTopLevel;
 
@@ -45,7 +45,7 @@ architecture behavior of UartTestTopLevel is
   signal uart_data : std_logic_vector(7 downto 0);
   signal uart_pulse : std_logic;
 begin
-
+uart_pulseo <= uart_pulse;
   -- Instantiate the Unit Under Test (UUT)
   uart_user_logic_inst : uart_user_logic
   port map
