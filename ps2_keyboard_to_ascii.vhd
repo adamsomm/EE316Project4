@@ -31,8 +31,8 @@ ENTITY ps2_keyboard_to_ascii IS
       clk        : IN  STD_LOGIC;                     --system clock input
       ps2_clk    : IN  STD_LOGIC;                     --clock signal from PS2 keyboard
       ps2_data   : IN  STD_LOGIC;                     --data signal from PS2 keyboard
-      ascii_new  : OUT STD_LOGIC;                     --output flag indicating new ASCII value
-      ascii_code : OUT STD_LOGIC_VECTOR(6 DOWNTO 0)); --ASCII value
+      ascii_new_pulse  : OUT STD_LOGIC;                     --output flag indicating new ASCII value
+      ascii_code : OUT STD_LOGIC_VECTOR(7 DOWNTO 0)); --ASCII value
 END ps2_keyboard_to_ascii;
 
 ARCHITECTURE behavior OF ps2_keyboard_to_ascii IS
@@ -49,6 +49,10 @@ ARCHITECTURE behavior OF ps2_keyboard_to_ascii IS
   SIGNAL shift_r           : STD_LOGIC := '0';                      --'1' if right shift is held down, else '0'
   SIGNAL shift_l           : STD_LOGIC := '0';                      --'1' if left shift is held down, else '0'
   SIGNAL ascii             : STD_LOGIC_VECTOR(7 DOWNTO 0) := x"FF"; --internal value of ASCII translation
+  
+  signal btn_sync          : std_logic_vector(1 downto 0);
+  signal ascii_new   : std_logic;
+  
 
 attribute mark_debug : string; 
 attribute mark_debug of ascii_new     : signal is "true";
@@ -68,6 +72,8 @@ attribute mark_debug of ps2_clk  : signal is "true";
       ps2_code     : OUT STD_LOGIC_VECTOR(7 DOWNTO 0)); --code received from PS/2
   END COMPONENT;
 
+    signal newflag : std_logic :='0';
+
 BEGIN
 
   --instantiate PS2 keyboard interface logic
@@ -76,6 +82,7 @@ BEGIN
     PORT MAP(clk => clk, ps2_clk => ps2_clk, ps2_data => ps2_data, ps2_code_new => ps2_code_new, ps2_code => ps2_code);
 
   PROCESS(clk)
+  variable count : integer range 0 to 13020 := 0;  -- Counter for 13,021 clock cycles
   BEGIN
     IF(clk'EVENT AND clk = '1') THEN
       prev_ps2_code_new <= ps2_code_new; --keep track of previous ps2_code_new values to determine low-to-high transitions
@@ -310,14 +317,29 @@ BEGIN
         WHEN output =>
           IF(ascii(7) = '0') THEN            --the PS2 code has an ASCII output
             ascii_new <= '1';                  --set flag indicating new ASCII output
-            ascii_code <= ascii(6 DOWNTO 0);   --output the ASCII value
+            newflag <= '1';
+            ascii_code <= '0' & ascii(6 DOWNTO 0);   --output the ASCII value
           END IF;
           state <= ready;                    --return to ready state to await next PS2 code
 
       END CASE;
     END IF;
+    if rising_edge(clk) then
+        if ascii_new = '1' then
+            if newflag = '1' then
+                if count = 13020 then  -- End of baud rate cycle
+                    ascii_new_pulse <= '0';  -- Set baudPulse low
+                    count := 0;        -- Reset the counter
+                    newflag <= '0';
+                else
+                    ascii_new_pulse <= '1';  -- Keep baudPulse high during the cycle
+                    count := count + 1; -- Increment the counter
+                end if;
+            end if;
+        end if;
+	end if;    
+  
   END PROCESS;
-
 END behavior;
 
 
