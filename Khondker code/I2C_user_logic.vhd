@@ -10,6 +10,7 @@ ENTITY I2C_user_logic IS
   PORT(
     clk        : IN     STD_LOGIC;                   --system clock
 	 iReset_n   : IN     STD_LOGIC;  
+	 data_in   : in std_logic_vector(15 downto 0);
     sda       : INOUT  STD_LOGIC;                    --serial data output of i2c bus
     scl       : INOUT  STD_LOGIC);
 	 --busy      : INOUT STD_LOGIC);                    --busy output of i2c bus
@@ -31,7 +32,7 @@ signal data_rd    : STD_LOGIC_VECTOR(7 DOWNTO 0); --data read from slave
 signal ack_error  : STD_LOGIC;                    --flag if improper acknowledge from slave  
 signal Cont 					 : unsigned(27 DOWNTO 0):=X"00000FF";
 signal byteSel    : integer range 0 to 12:=0;
-signal iData      : STD_LOGIC_VECTOR(15 DOWNTO 0); --address of target slave
+--signal iData      : STD_LOGIC_VECTOR(15 DOWNTO 0); --address of target slave
 signal slave_addr : STD_LOGIC_VECTOR(6 DOWNTO 0); --address of target slave
 signal sda1        : STD_LOGIC;                    --serial data output of i2c bus
 signal scl1        : STD_LOGIC;                   --serial clock output of i2c bus
@@ -70,11 +71,11 @@ END COMPONENT;
   
 BEGIN
 
-	iData <= X"ABCD";
+--	data_in <= X"ABCD";
    slave_addr <= "1110001";
 	--busy <= i2c_busy;
     
-process(byteSel, iData)
+process(byteSel, data_in)
  begin
     case byteSel is
        when 0  => data_wr <= X"76";
@@ -86,10 +87,10 @@ process(byteSel, iData)
        when 6  => data_wr <= X"00";
        when 7  => data_wr <= X"79";
        when 8  => data_wr <= X"00";
-       when 9  => data_wr <= X"0"&iData(15 downto 12);
-       when 10 => data_wr <= X"0"&iData(11 downto 8);
-       when 11 => data_wr <= X"0"&iData(7  downto 4);
-       when 12 => data_wr <= X"0"&iData(3  downto 0);
+       when 9  => data_wr <= X"0"&data_in(15 downto 12);
+       when 10 => data_wr <= X"0"&data_in(11 downto 8);
+       when 11 => data_wr <= X"0"&data_in(7  downto 4);
+       when 12 => data_wr <= X"0"&data_in(3  downto 0);
        when others => data_wr <= X"76";
    end case;
 end process;

@@ -9,11 +9,12 @@ entity uart_user_logic is   -- tx_out
        iclk                    : in std_logic;   
 	   tx                      : out std_logic; -- tx_out will be assigned to tx pin of the controller
        rx                      : in std_logic;
-       reset                   : in std_logic
+       reset                   : in std_logic;
+       --regPulse                : out std_logic;
        
-	   --LCD_Data                : out std_logic_vector(127 DOWNTO 0);
-	   --Mode					   : out std_logic_vector(2 DOWNTO 0);
-	   --Seven_seg			   : out std_logic_vector(0 DOWNTO 0)
+	   LCD_Data                : out std_logic_vector(127 DOWNTO 0) := X"30303030303030303030303030303030";
+	   Mode					   : out std_logic_vector(2 DOWNTO 0) := "000";
+	   Seven_seg			   : out std_logic_vector(0 DOWNTO 0)
 		 );
 end uart_user_logic;
 
@@ -60,7 +61,7 @@ end component;
 
 component btn_debounce_toggle is
 GENERIC (
-	CONSTANT CNTR_MAX : std_logic_vector(15 downto 0) := X"FFFF");  
+	CONSTANT CNTR_MAX : std_logic_vector(15 downto 0) := X"0001");  --fde8
     Port ( BTN_I 	: in  STD_LOGIC;
            CLK 		: in  STD_LOGIC;
            BTN_O 	: out  STD_LOGIC;
@@ -84,11 +85,13 @@ signal rx_data    : std_logic_vector(7 DOWNTO 0);
 signal rx_enable : std_logic;
 signal rx_in    : std_logic;
 signal rx_empty : std_logic;
+signal rx_full : std_logic;
 
 
-signal Mode					   :  std_logic_vector(2 DOWNTO 0);
-signal Seven_seg			   :  std_logic_vector(0 DOWNTO 0);
-signal LCD_data                : std_logic_vector(127 downto 0);
+
+--signal Mode					   :  std_logic_vector(2 DOWNTO 0);
+--signal Seven_seg			   :  std_logic_vector(0 DOWNTO 0);
+--signal LCD_data                : std_logic_vector(127 downto 0);
 
 -- SHIFT REGISTER SIGNALS --
 signal sr_in0	  : std_logic_vector(7 DOWNTO 0);
@@ -109,18 +112,42 @@ signal sr_in14   : std_logic_vector(7 DOWNTO 0);
 signal sr_in15   : std_logic_vector(7 DOWNTO 0);
 signal sr_in16   : std_logic_vector(7 DOWNTO 0);
 
--- Clock divider signals
-signal clk_div   : std_logic := '0';
-signal div_cnt   : integer := 0;
-constant DIV_MAX : integer := 6510;  -- Adjust this constant if needed
---signal baudPulse : std_logic;
-signal firstpulse: std_logic;
-
-signal shiftcount       : integer range 0 to 16;
+signal shiftcount       : integer range 0 to 17;
 signal rx_empty_db      : std_logic;
 signal shift_trig       : std_logic;
 signal old_shift_trig   : std_logic;
 signal uartconcat       : std_logic_vector(7 downto 0);
+
+-- Clock divider signals
+signal clk_div   : std_logic := '0';
+signal div_cnt   : integer := 0;
+constant DIV_MAX : integer := 6510;  -- Adjust this constant if needed
+signal firstpulse: std_logic;
+
+attribute mark_debug : string; 
+attribute mark_debug of rx_data     : signal is "true";
+attribute mark_debug of rx_full  : signal is "true";
+attribute mark_debug of shift_trig     : signal is "true";
+attribute mark_debug of shiftcount  : signal is "true";
+attribute mark_debug of sr_in16  : signal is "true";
+attribute mark_debug of sr_in15  : signal is "true";
+attribute mark_debug of sr_in14  : signal is "true";
+attribute mark_debug of sr_in13  : signal is "true";
+attribute mark_debug of sr_in12  : signal is "true";
+attribute mark_debug of sr_in11  : signal is "true";
+attribute mark_debug of sr_in10  : signal is "true";
+attribute mark_debug of sr_in9  : signal is "true";
+attribute mark_debug of sr_in8  : signal is "true";
+attribute mark_debug of sr_in7  : signal is "true";
+attribute mark_debug of sr_in6  : signal is "true";
+attribute mark_debug of sr_in5  : signal is "true";
+attribute mark_debug of sr_in4  : signal is "true";
+attribute mark_debug of sr_in3  : signal is "true";
+attribute mark_debug of sr_in2  : signal is "true";
+attribute mark_debug of sr_in1  : signal is "true";
+attribute mark_debug of sr_in0  : signal is "true";
+
+
 
 begin
 
@@ -171,17 +198,19 @@ end process;
 --        end if;
 --    end if;
 --end process;
-
-process(iclk, shift_trig, old_shift_trig)
+rx_full <= not rx_empty;
+process(iclk)
 begin
+	if rising_edge(iclk) then
 	old_shift_trig <= shift_trig;
-	
-	if shift_trig = '1' and old_shift_trig = '0' then
+	if shift_trig = '0' and old_shift_trig = '1' then
 		shiftcount <= shiftcount + 1;
-		if shiftcount = 17 then
+	end if;
+	if shiftcount > 16 then
 			LCD_Data <= sr_in16 & sr_in15 & sr_in14 & sr_in13 & sr_in12 & sr_in11 & sr_in10 & sr_in9 & sr_in8 & sr_in7 & sr_in6 & sr_in5 & sr_in4 & sr_in3 & sr_in2 & sr_in1;
-			Mode <= sr_in0(2 DOWNTO 0);
-			Seven_seg <= sr_in0(3 DOWNTO 3);
+			Mode <= sr_in0(6 DOWNTO 4);
+			Seven_seg <= sr_in0(7 DOWNTO 7);
+			shiftcount <= 0;
 		end if;
 	end if;
 end process;
@@ -205,7 +234,7 @@ uart_master_inst : uart
 
 debouncer_inst : btn_debounce_toggle
 	PORT MAP(
-    BTN_I => rx_empty,
+    BTN_I => rx_full,
     CLK => iclk,
     BTN_O => open, 
     TOGGLE_O => open,
@@ -216,7 +245,7 @@ shift_register_inst0 : Shift_Reg
 	  PORT MAP(
 	   clock => iclk,
 		reset => reset,
-		en => rx_empty, 			
+		en => shift_trig, 			
 		sr_in => rx_data,
 		sr_out => sr_in0
 		);
@@ -225,7 +254,7 @@ shift_register_inst1 : Shift_Reg
 	  PORT MAP(
 	   clock => iclk,
 		reset => reset,
-		en => rx_empty, 			
+		en => shift_trig, 			
 		sr_in => sr_in0,
 		sr_out => sr_in1
 		);
@@ -234,7 +263,7 @@ shift_register_inst2 : Shift_Reg
 	  PORT MAP(
 	   clock => iclk,
 		reset => reset,
-		en => rx_empty, 			
+		en => shift_trig, 			
 		sr_in => sr_in1,
 		sr_out => sr_in2
 		);
@@ -243,7 +272,7 @@ shift_register_inst3 : Shift_Reg
 	  PORT MAP(
 	   clock => iclk,
 		reset => reset,
-		en => rx_empty, 			
+		en => shift_trig, 			
 		sr_in => sr_in2,
 		sr_out => sr_in3
 		);
@@ -252,7 +281,7 @@ shift_register_inst4 : Shift_Reg
 	  PORT MAP(
 	   clock => iclk,
 		reset => reset,
-		en => rx_empty, 			
+		en => shift_trig, 			
 		sr_in => sr_in3,
 		sr_out => sr_in4
 		);
@@ -261,7 +290,7 @@ shift_register_inst5 : Shift_Reg
 	  PORT MAP(
 	   clock => iclk,
 		reset => reset,
-		en => rx_empty, 			
+		en => shift_trig, 			
 		sr_in => sr_in4,
 		sr_out => sr_in5
 		);		
@@ -270,7 +299,7 @@ shift_register_inst6 : Shift_Reg
 	  PORT MAP(
 	   clock => iclk,
 		reset => reset,
-		en => rx_empty, 			
+		en => shift_trig, 			
 		sr_in => sr_in5,
 		sr_out => sr_in6
 		);		
@@ -279,7 +308,7 @@ shift_register_inst7 : Shift_Reg
 	  PORT MAP(
 	   clock => iclk,
 		reset => reset,
-		en => rx_empty, 			
+		en => shift_trig, 			
 		sr_in => sr_in6,
 		sr_out => sr_in7
 		);		
@@ -288,7 +317,7 @@ shift_register_inst8 : Shift_Reg
 	  PORT MAP(
 	   clock => iclk,
 		reset => reset,
-		en => rx_empty, 			
+		en => shift_trig, 			
 		sr_in => sr_in7,
 		sr_out => sr_in8
 		);		
@@ -297,7 +326,7 @@ shift_register_inst9 : Shift_Reg
 	  PORT MAP(
 	   clock => iclk,
 		reset => reset,
-		en => rx_empty, 			
+		en => shift_trig, 			
 		sr_in => sr_in8,
 		sr_out => sr_in9
 		);		
@@ -306,7 +335,7 @@ shift_register_inst10 : Shift_Reg
 	  PORT MAP(
 	   clock => iclk,
 		reset => reset,
-		en => rx_empty, 			
+		en => shift_trig, 			
 		sr_in => sr_in9,
 		sr_out => sr_in10
 		);		
@@ -315,7 +344,7 @@ shift_register_inst11 : Shift_Reg
 	  PORT MAP(
 	   clock => iclk,
 		reset => reset,
-		en => rx_empty, 			
+		en => shift_trig, 			
 		sr_in => sr_in10,
 		sr_out => sr_in11
 		);		
@@ -324,7 +353,7 @@ shift_register_inst12 : Shift_Reg
 	  PORT MAP(
 	   clock => iclk,
 		reset => reset,
-		en => rx_empty, 			
+		en => shift_trig, 			
 		sr_in => sr_in11,
 		sr_out => sr_in12
 		);		
@@ -333,7 +362,7 @@ shift_register_inst13 : Shift_Reg
 	  PORT MAP(
 	   clock => iclk,
 		reset => reset,
-		en => rx_empty, 			
+		en => shift_trig, 			
 		sr_in => sr_in12,
 		sr_out => sr_in13
 		);		
@@ -342,7 +371,7 @@ shift_register_inst14 : Shift_Reg
 	  PORT MAP(
 	   clock => iclk,
 		reset => reset,
-		en => rx_empty, 			
+		en => shift_trig, 			
 		sr_in => sr_in13,
 		sr_out => sr_in14
 		);		
@@ -351,7 +380,7 @@ shift_register_inst15 : Shift_Reg
 	  PORT MAP(
 	   clock => iclk,
 		reset => reset,
-		en => rx_empty, 			
+		en => shift_trig, 			
 		sr_in => sr_in14,
 		sr_out => sr_in15
 		);		
@@ -360,7 +389,7 @@ shift_register_inst16 : Shift_Reg
 	  PORT MAP(
 	   clock => iclk,
 		reset => reset,
-		en => rx_empty, 			
+		en => shift_trig, 			
 		sr_in => sr_in15,
 		sr_out => sr_in16
 		);		
