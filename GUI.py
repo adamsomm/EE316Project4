@@ -27,6 +27,7 @@ max_attempts = 6
 attempts_left = max_attempts
 puzzles_solved = 0
 puzzles_attempted = 0
+correctness_bit = "0"
 game_over = False  # Global variable to track game over state
 
 # Load images (Ensure images named '0.png' to '6.png' exist in the same directory)
@@ -80,7 +81,7 @@ def handle_new_game_response(event=None):
 def encode_word_state():
     """Convert the guessed word state to a 16-character hexadecimal string."""
     display_word = "".join([letter if letter in guessed_letters else "_" for letter in secret_word])
-    padded_word = display_word.ljust(16, "_")  # Ensure it is exactly 16 characters
+    padded_word = display_word.ljust(16, " ")  # Ensure it is exactly 16 characters
 
     print(f"Display Word: {display_word}")
     print(f"Padded Word: {padded_word}")
@@ -92,42 +93,59 @@ def encode_game_state():
     print(f"Padded Word: {padded_word}")
     return padded_word.encode("utf-8").hex()
 
+# def encode_seg_state(correctness_bit):
+#     """Convert the guessed word state to a 16-character hexadecimal string."""
+#
+#     return correctness_bit.encode("utf-8").hex()
+#
+# def encode_mode_state():
+#     """Convert the guessed word state to a 16-character hexadecimal string."""
+#     mode_bits = get_mode_bits()
+#     return mode_bits.encode("utf-8").hex()
+#
+# def encode_space_state():
+#     """Convert the guessed word state to a 16-character hexadecimal string."""
+#     padding_bits = "0000"
+#     return padding_bits.encode("utf-8").hex()
+
 def send_game_state(correct):
-    """Simulate sending the updated game state to FPGA by printing the formatted data."""
-    word_hex = encode_word_state()
-    correctness_bit = "0" if correct else "1"
-    mode_bits = get_mode_bits()
-    padding_bits = "0000"
-    print(f"Mode bits: {mode_bits}")
+    global correctness_bit, attempts_left
+    correctness_bit = "0"
+    """Send the updated game state to FPGA via UART."""
 
-    if mode_bits == "101":
-        answer_hex = encode_game_state()
-        data_packet = f"{answer_hex}{correctness_bit}{mode_bits}{padding_bits}"
-        print(f"Test: {data_packet}")
-    else:
-        data_packet = f"{word_hex}{correctness_bit}{mode_bits}{padding_bits}"
-        print(f"Test: {data_packet}")
-    # # Simulate sending by printing instead of writing to serial
-    # print(f"Test Output: {data_packet}")
+    if ser:
+        word_hex = encode_word_state()
+        lives = format(attempts_left, "04b")
+        # if not guessed_letters:  # If no guesses have been made yet
+        #     correctness_bit = "0"
+        # else:
+        #     correctness_bit = "0" if correct else "1"
+        # correctness_bit = "0" if correct else "1" # "0" if correct else "1"
+        # bin_correctness_bit = format(int(correctness_bit,2))
+        mode_bits = get_mode_bits()
+        # mode_bits = format(int(get_mode_bits(),2))
+        first_half_bits = mode_bits
+        # padding_bits ='0000'
+        combine_bits = first_half_bits + lives
+        binary_hex = format(int(combine_bits, 2), "02X")
 
-    # """Send the updated game state to FPGA via UART."""
-    # if ser:
-    #     word_hex = encode_word_state()
-    #     answer_hex = encode_game_state()
-    #     correctness_bit = "0" if correct else "1"
-    #     mode_bits = get_mode_bits()
-    #     padding_bits = "0000"
-    #     if mode_bits == "111":
-    #         data_packet = f"{answer_hex}{correctness_bit}{mode_bits}{padding_bits}"
-    #         print("Sending to FPGA: {data_packet}")
-    #         # Send data as bytes
-    #         threading.Thread(target=lambda: ser.write(bytes.fromhex(data_packet)), daemon=True).start()
-    #     else:
-    #         data_packet = f"{word_hex}{correctness_bit}{mode_bits}{padding_bits}"
-    #
-    #         print("Sending to FPGA: {data_packet}")
-    #         # Send data as bytes
-    #         threading.Thread(target=lambda: ser.write(bytes.fromhex(data_packet)), daemon=True).start()
+        # bin_padding_bits = format(int(padding_bits,2))
+        # print(f"mode_bits: {mode_bits}")
+        # print(f"correctness_bits: {correctness_bit}")
+        # print(f"combine_bits: {combine_bits}")
+        # print(f"binary combine_bits: {binary_hex}")
+        # print(f"padding_bits: {padding_bits}")
+        if mode_bits == "5":
+            data_packet = f"{word_hex}{binary_hex}"
+            print(f"Sending to FPGA: {data_packet}")
+            # Send data as bytes
+            threading.Thread(target=lambda: ser.write(bytes.fromhex(data_packet)), daemon=True).start()
+        else:
+            data_packet = f"{word_hex}{binary_hex}"
+
+            print(f"Sending to FPGA: {data_packet}")
+            # Send data as bytes
+            threading.Thread(target=lambda: ser.write(bytes.fromhex(data_packet)), daemon=True).start()
 
 def get_mode_bits():
     """Determine the 3-bit mode for the FPGA."""
@@ -141,6 +159,16 @@ def get_mode_bits():
         return "000"  # New game mode
     else:
         return "001"  # Active game mode
+    # if game_over:
+    #     return hex(int(111))
+    # elif attempts_left == 0:
+    #     return hex(int(101))  # Loss mode
+    # elif set(secret_word) <= guessed_letters:
+    #     return hex(int(110))  # Win mode
+    # elif not guessed_letters:
+    #     return hex(int(000)) # New game mode
+    # else:
+    #     return hex(int(1))  # Active game mode
 
 
 def update_display():
@@ -193,58 +221,26 @@ def end_game():
 
 
 def prompt_for_new_game():
+    global correctness_bit
+    correctness_bit = "0"
     new_game_label.config(text="New Game? (Press 'Y' for Yes, 'N' for No)")
     root.bind("<KeyRelease>", handle_new_game_response)  # Bind for new game response
 
 
-def handle_new_game_response(event=None):
-    """Handles user response to start a new game or exit."""
-    global secret_word, guessed_letters, attempts_left, game_over
-    response = event.char.upper()
-
-    if response == "Y":
-        new_game_label.config(text="")  # Clear new game message
-        root.unbind("<KeyRelease>")  # Unbind new game selection
-
-        # Reset game variables
-        secret_word = random.choice(word_list)
-        guessed_letters.clear()
-        attempts_left = max_attempts
-        game_over = False
-
-        # Show game UI elements
-        image_label.pack()
-        word_label.pack()
-        attempts_label.pack()
-        used_label.pack()
-        message_label.pack()
-        score_label.pack()
-
-        update_display()
-        send_game_state(False)  # Send new game state to FPGA
-        root.bind("<KeyRelease>", check_guess)  # Rebind guessing input
-
-    elif response == "N":
-        message_label.config(text="GAME OVER", fg="blue")
-        new_game_label.config(text=f"Final Score: {puzzles_solved} correct out of {puzzles_attempted}")
-        game_over = True  # Set game over flag
-        send_game_state(False)  # Send final game-over state to FPGA
-
-
 def start_game():
     root.bind("<KeyRelease>", check_guess)
+    # send_game_state(False)
     update_display()
     threading.Thread(target=receive_data_from_serial, daemon=True).start()  # Start listening for serial data
 
 
 def receive_data_from_serial():
-    """Continuously read data from the serial port in a separate thread."""
     while True:
         if ser:
             try:
                 data = ser.readline().decode().strip()  # Read and decode data
                 if data:
-                    root.after(0, process_serial_data, data)  # Schedule UI update in main thread
+                    root.after(0, process_serial_data, data)  #
             except Exception as e:
                 print(f"Serial read error: {e}")
 
