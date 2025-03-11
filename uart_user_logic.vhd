@@ -10,7 +10,7 @@ entity uart_user_logic is   -- tx_out
 	   tx                      : out std_logic; -- tx_out will be assigned to tx pin of the controller
        rx                      : in std_logic;
        reset                   : in std_logic;
-       --regPulse                : out std_logic;
+       regPulse                : out std_logic;
        
 	   LCD_Data                : out std_logic_vector(127 DOWNTO 0) := X"30303030303030303030303030303030";
 	   Mode					   : out std_logic_vector(2 DOWNTO 0) := "000";
@@ -85,7 +85,7 @@ signal rxclk : std_logic;
 signal uld_rx_data : std_logic;
 signal rx_data    : std_logic_vector(7 DOWNTO 0);
 signal rx_enable : std_logic;
-signal rx_in    : std_logic;
+--signal rx_in    : std_logic;
 signal rx_empty : std_logic;
 signal rx_full : std_logic;
 
@@ -127,7 +127,7 @@ signal div_cnttx   : integer := 0;
 constant DIV_MAXtx : integer := 6510;  -- Adjust this constant if needed
 signal rx_clk_div   : std_logic := '0';
 signal div_cntrx   : integer := 0;
-constant DIV_MAXrx : integer := 814;  -- Adjust this constant if needed
+constant DIV_MAXrx : integer := 400;  -- Adjust this constant if needed 16x is 814
 signal firstpulse: std_logic;
 
 attribute mark_debug : string; 
@@ -202,9 +202,17 @@ end process;
 --    end if;
 --end process;
 rx_full <= not rx_empty;
+regPulse <= rx_empty;
 process(iclk)
 begin
-	if rising_edge(iclk) then
+    if reset = '1' then
+        old_shift_trig <= '0';
+        
+        shiftcount <= 0;
+        LCD_Data <= (others => '0');
+        Seven_seg <= '0';
+        Mode <= "000";
+	elsif rising_edge(iclk) then
 	old_shift_trig <= shift_trig;
 	if shift_trig = '0' and old_shift_trig = '1' then
 		shiftcount <= shiftcount + 1;
@@ -230,8 +238,8 @@ uart_master_inst : uart
         rxclk       => rx_clk_div,
         uld_rx_data => '1',
         rx_data     => rx_data,
-        rx_enable   => rx_enable,
-        rx_in       => rx_in,
+        rx_enable   => '1',
+        rx_in       => rx,
         rx_empty    => rx_empty
     );
 
