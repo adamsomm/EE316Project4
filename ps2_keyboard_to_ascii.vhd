@@ -306,7 +306,6 @@ BEGIN
               END IF;
               
             END IF;
-            ascii_code <=  ascii; 
           IF(break = '0') THEN  --the code is a make
             state <= output;      --proceed to output state
 --            ascii_code <=  ascii; 
@@ -318,13 +317,14 @@ BEGIN
         WHEN output =>
           IF(ascii(7) = '0') THEN            --the PS2 code has an ASCII output
             ascii_new <= '1';                  --set flag indicating new ASCII output
-            ascii_code <=  ascii;   --output the ASCII value
+            --ascii_code <=  ascii;   --output the ASCII value
             if count >= 130208 then  -- End of baud rate cycle
                     ascii_new_pulse <= '0';  -- Set baudPulse low
                     count := 0;        -- Reset the counter
                     state <= ready;
                 else
                     ascii_new_pulse <= '1';  -- Keep baudPulse high during the cycle
+                    ascii_code <=  ascii;
                     count := count + 1; -- Increment the counter
                 end if;
           END IF;
