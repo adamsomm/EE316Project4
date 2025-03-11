@@ -32,6 +32,50 @@ game_over = False  # Global variable to track game over state
 # Load images (Ensure images named '0.png' to '6.png' exist in the same directory)
 images = [tk.PhotoImage(file=f"{i}.png") for i in range(6)]
 
+def setup_initial_screen():
+    """Initial screen that only asks for a new game before showing hangman UI."""
+    image_label.pack_forget()  # Hide image
+    word_label.pack_forget()
+    attempts_label.pack_forget()
+    used_label.pack_forget()
+    message_label.pack_forget()
+    score_label.pack_forget()
+
+    new_game_label.config(text="New Game? (Press 'Y' for Yes, 'N' for No)")
+    root.bind("<KeyRelease>", handle_new_game_response)  # Bind for new game selection
+
+
+def handle_new_game_response(event=None):
+    """Handles user response to start a new game or exit."""
+    global secret_word, guessed_letters, attempts_left, game_over
+    response = event.char.upper()
+    if response == "Y":
+        new_game_label.config(text="")  # Clear new game message
+        root.unbind("<KeyRelease>")  # Unbind new game selection
+
+        # Reset game variables
+        secret_word = random.choice(word_list)
+        guessed_letters.clear()
+        attempts_left = max_attempts
+        game_over = False
+
+        # Show game UI elements
+        image_label.pack()
+        word_label.pack()
+        attempts_label.pack()
+        used_label.pack()
+        message_label.pack()
+        score_label.pack()
+
+        update_display()
+        send_game_state(False)  # Send new game state to FPGA
+        root.bind("<KeyRelease>", check_guess)  # Rebind guessing input
+
+    elif response == "N":
+        message_label.config(text="GAME OVER", fg="blue")
+        new_game_label.config(text=f"Final Score: {puzzles_solved} correct out of {puzzles_attempted}")
+        game_over = True  # Set game over flag
+        send_game_state(False)  # Send final game-over state to FPGA
 
 def encode_word_state():
     """Convert the guessed word state to a 16-character hexadecimal string."""
@@ -42,6 +86,11 @@ def encode_word_state():
     print(f"Padded Word: {padded_word}")
     return padded_word.encode("utf-8").hex()
 
+def encode_game_state():
+    """Convert the guessed word state to a 16-character hexadecimal string."""
+    padded_word = secret_word.ljust(16, "_")  # Ensure it is exactly 16 characters
+    print(f"Padded Word: {padded_word}")
+    return padded_word.encode("utf-8").hex()
 
 def send_game_state(correct):
     """Simulate sending the updated game state to FPGA by printing the formatted data."""
@@ -49,11 +98,36 @@ def send_game_state(correct):
     correctness_bit = "0" if correct else "1"
     mode_bits = get_mode_bits()
     padding_bits = "0000"
-    data_packet = f"{word_hex}{correctness_bit}{mode_bits}{padding_bits}"
+    print(f"Mode bits: {mode_bits}")
 
-    # Simulate sending by printing instead of writing to serial
-    print(f"Test Output: {data_packet}")
+    if mode_bits == "101":
+        answer_hex = encode_game_state()
+        data_packet = f"{answer_hex}{correctness_bit}{mode_bits}{padding_bits}"
+        print(f"Test: {data_packet}")
+    else:
+        data_packet = f"{word_hex}{correctness_bit}{mode_bits}{padding_bits}"
+        print(f"Test: {data_packet}")
+    # # Simulate sending by printing instead of writing to serial
+    # print(f"Test Output: {data_packet}")
 
+    # """Send the updated game state to FPGA via UART."""
+    # if ser:
+    #     word_hex = encode_word_state()
+    #     answer_hex = encode_game_state()
+    #     correctness_bit = "0" if correct else "1"
+    #     mode_bits = get_mode_bits()
+    #     padding_bits = "0000"
+    #     if mode_bits == "111":
+    #         data_packet = f"{answer_hex}{correctness_bit}{mode_bits}{padding_bits}"
+    #         print("Sending to FPGA: {data_packet}")
+    #         # Send data as bytes
+    #         threading.Thread(target=lambda: ser.write(bytes.fromhex(data_packet)), daemon=True).start()
+    #     else:
+    #         data_packet = f"{word_hex}{correctness_bit}{mode_bits}{padding_bits}"
+    #
+    #         print("Sending to FPGA: {data_packet}")
+    #         # Send data as bytes
+    #         threading.Thread(target=lambda: ser.write(bytes.fromhex(data_packet)), daemon=True).start()
 
 def get_mode_bits():
     """Determine the 3-bit mode for the FPGA."""
@@ -124,20 +198,32 @@ def prompt_for_new_game():
 
 
 def handle_new_game_response(event=None):
+    """Handles user response to start a new game or exit."""
     global secret_word, guessed_letters, attempts_left, game_over
     response = event.char.upper()
+
     if response == "Y":
+        new_game_label.config(text="")  # Clear new game message
+        root.unbind("<KeyRelease>")  # Unbind new game selection
+
+        # Reset game variables
         secret_word = random.choice(word_list)
         guessed_letters.clear()
         attempts_left = max_attempts
+        game_over = False
+
+        # Show game UI elements
+        image_label.pack()
+        word_label.pack()
+        attempts_label.pack()
+        used_label.pack()
+        message_label.pack()
+        score_label.pack()
+
         update_display()
         send_game_state(False)  # Send new game state to FPGA
-        root.unbind("<KeyRelease>")  # Unbind the new game response and restart guess input
-        root.bind("<KeyRelease>", check_guess)  # Bind back to guessing
+        root.bind("<KeyRelease>", check_guess)  # Rebind guessing input
 
-        message_label.config(text="")
-        score_label.config(text="")
-        new_game_label.config(text="")
     elif response == "N":
         message_label.config(text="GAME OVER", fg="blue")
         new_game_label.config(text=f"Final Score: {puzzles_solved} correct out of {puzzles_attempted}")
@@ -166,14 +252,15 @@ def receive_data_from_serial():
 def process_serial_data(data):
     """Process received serial data and update the UI."""
     global attempts_left
-    message_label.config(text=f"Received: {data}", fg="blue")
 
-    if data.startswith("CORRECT"):  # Example hardware response
-        message_label.config(text="Hardware: Correct Guess!", fg="green")
-    elif data.startswith("WRONG"):  # Example hardware response
-        attempts_left -= 1
-        update_display()
-        message_label.config(text="Hardware: Incorrect Guess!", fg="red")
+    if data:
+        data = data.strip().upper()  # Ensure uppercase like keyboard input
+
+        if len(data) == 1 and data.isalpha():  # Ensure it's a single valid letter
+            event = type("Event", (object,), {"char": data})  # Create a mock event
+            check_guess(event)  # Call the existing function with the event
+        else:
+            message_label.config(text=f"Invalid input received: {data}", fg="red")
 
 
 # UI Elements
@@ -203,9 +290,9 @@ new_game_label = tk.Label(root, text="", font=("Arial", 12))  # Label for "New G
 new_game_label.pack()
 
 # Initialize display
-start_game()
-
+setup_initial_screen()
 root.mainloop()
+# start_game()
 
 if ser:
     ser.close()
