@@ -276,7 +276,7 @@ begin
 
       MODEprev <= MODE;
       if MODEprev /= MODE then
-        byteSel        <= 1;
+        byteSel        <= 6; --1;
         dataCount      <= 1;
         prevDataCount  <= 1;
       end if;

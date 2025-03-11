@@ -306,7 +306,7 @@ BEGIN
               END IF;
               
             END IF;
-          
+            ascii_code <=  ascii; 
           IF(break = '0') THEN  --the code is a make
             state <= output;      --proceed to output state
 --            ascii_code <=  ascii; 

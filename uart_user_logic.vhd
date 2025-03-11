@@ -14,7 +14,7 @@ entity uart_user_logic is   -- tx_out
        
 	   LCD_Data                : out std_logic_vector(127 DOWNTO 0) := X"30303030303030303030303030303030";
 	   Mode					   : out std_logic_vector(2 DOWNTO 0) := "000";
-	   Seven_seg			   : out std_logic
+	   Seven_seg			   : out std_logic_vector(15 downto 0)
 		 );
 end uart_user_logic;
 
@@ -135,6 +135,7 @@ attribute mark_debug of rx_data     : signal is "true";
 attribute mark_debug of rx_full  : signal is "true";
 attribute mark_debug of shift_trig     : signal is "true";
 attribute mark_debug of shiftcount  : signal is "true";
+attribute mark_debug of tx_data  : signal is "true";
 
 attribute mark_debug of sr_out : signal is "true";
 
@@ -210,7 +211,7 @@ begin
         
         shiftcount <= 0;
         LCD_Data <= (others => '0');
-        Seven_seg <= '0';
+        Seven_seg <= X"0006";
         Mode <= "000";
 	elsif rising_edge(iclk) then
 	old_shift_trig <= shift_trig;
@@ -220,7 +221,7 @@ begin
 	if shiftcount > 16 then
 			LCD_Data <= sr_out(135 downto 8);
 			Mode <= sr_out(6 downto 4);
-			Seven_seg <= sr_out(7);
+			Seven_seg <= X"000" & sr_out(3 downto 0);
 			shiftcount <= 0;
 		end if;
 	end if;

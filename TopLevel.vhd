@@ -49,7 +49,7 @@ architecture Behavioral of TopLevel is
       
       LCD_Data  : out std_logic_vector(127 downto 0);
       Mode      : out std_logic_vector(2 downto 0);
-      Seven_seg : out std_logic
+      Seven_seg : out std_logic_vector(15 downto 0)
       
     );
   end component;
@@ -96,13 +96,18 @@ architecture Behavioral of TopLevel is
   signal reset_d        : std_logic;
   signal reset_Mode     : std_logic := '0';
   signal olduartSeven   : std_logic := '0';
-  signal uartSeven      : std_logic := '0';
+  signal uartSeven      : std_logic_vector(15 downto 0) := X"0006";
   signal oldmode        : std_logic_vector(2 downto 0);
   signal mode           : std_logic_vector(2 downto 0)   := "101";
   signal data_s         : std_logic_vector(15 downto 0)  := X"0006";
   signal LCD_data       : std_logic_vector(127 downto 0) := X"48616E675F5F5F5F4D616E2020202020";
   signal uart_datai     : std_logic_vector(7 downto 0);
   signal uart_pulse     : std_logic;
+  
+  attribute mark_debug : string; 
+attribute mark_debug of mode     : signal is "true";
+attribute mark_debug of LCD_data  : signal is "true";
+attribute mark_debug of data_s  : signal is "true";
 begin
   internal_reset <= reset or reset_d;
   -- Component instantiations
@@ -151,7 +156,7 @@ begin
   (
     clk      => iCLK,
     iReset_n => internal_reset,
-    data_in  => data_s,
+    data_in  => uartSeven,
     sda      => Sevsda,
     scl      => Sevscl
   );
@@ -170,23 +175,23 @@ begin
     sda     => LCDsda
   );
   -- Process declaration for seven segment incrementing logic based on uart
-  process (iCLK, internal_reset)
-  begin
-    olduartSeven <= uartSeven;
-    oldMode      <= mode;
-    if oldMode /= mode then
-      reset_Mode <= '1';
-    end if;
-    if internal_reset = '1' or reset_Mode = '1' then
-      data_s       <= X"0006";
-      olduartSeven <= '0';
-    elsif rising_edge(iCLK) then
-      if uartSeven = '1' and olduartSeven = '0' then
-        case data_s is
-          when X"0000" => data_s <= X"0006";
-          when others  => data_s  <= data_s - 1;
-        end case;
-      end if;
-    end if;
-  end process;
+--  process (iCLK, internal_reset)
+--  begin
+--    olduartSeven <= uartSeven;
+--    oldMode      <= mode;
+--    if oldMode /= mode then
+--      reset_Mode <= '1';
+--    end if;
+--    if internal_reset = '1' or reset_Mode = '1' then
+--      data_s       <= X"0006";
+--      olduartSeven <= '0';
+--    elsif rising_edge(iCLK) then
+--      if uartSeven = '1' and olduartSeven = '0' then
+--        case data_s is
+--          when X"0000" => data_s <= X"0006";
+--          when others  => data_s  <= data_s - 1;
+--        end case;
+--      end if;
+--    end if;
+--  end process;
 end Behavioral;
