@@ -14,7 +14,7 @@ entity uart_user_logic is   -- tx_out
        
 	   LCD_Data                : out std_logic_vector(127 DOWNTO 0) := X"30303030303030303030303030303030";
 	   Mode					   : out std_logic_vector(2 DOWNTO 0) := "000";
-	   Seven_seg			   : out std_logic_vector(0 DOWNTO 0)
+	   Seven_seg			   : out std_logic
 		 );
 end uart_user_logic;
 
@@ -39,7 +39,9 @@ end component;
 
 component Shift_Reg is
 	GENERIC (
-		CONSTANT sr_depth : integer := 8);     
+        sr_depth : integer := 136;  -- Depth of the shift register
+        input_width : integer := 8  -- Width of the input data
+    );    
 	port(	
 		clock:		in std_logic;
 		reset :		in std_logic;
@@ -94,23 +96,24 @@ signal rx_full : std_logic;
 --signal LCD_data                : std_logic_vector(127 downto 0);
 
 -- SHIFT REGISTER SIGNALS --
-signal sr_in0	  : std_logic_vector(7 DOWNTO 0);
-signal sr_in1	  :std_logic_vector(7 DOWNTO 0);
-signal sr_in2    : std_logic_vector(7 DOWNTO 0);
-signal sr_in3    : std_logic_vector(7 DOWNTO 0);
-signal sr_in4    : std_logic_vector(7 DOWNTO 0);
-signal sr_in5    : std_logic_vector(7 DOWNTO 0);
-signal sr_in6    : std_logic_vector(7 DOWNTO 0);
-signal sr_in7    : std_logic_vector(7 DOWNTO 0);
-signal sr_in8    : std_logic_vector(7 DOWNTO 0);
-signal sr_in9    : std_logic_vector(7 DOWNTO 0);
-signal sr_in10   : std_logic_vector(7 DOWNTO 0);
-signal sr_in11   : std_logic_vector(7 DOWNTO 0);
-signal sr_in12   : std_logic_vector(7 DOWNTO 0);
-signal sr_in13   : std_logic_vector(7 DOWNTO 0);
-signal sr_in14   : std_logic_vector(7 DOWNTO 0);
-signal sr_in15   : std_logic_vector(7 DOWNTO 0);
-signal sr_in16   : std_logic_vector(7 DOWNTO 0);
+signal sr_out	: std_logic_vector(135 downto 0);
+--signal sr_in0	  : std_logic_vector(7 DOWNTO 0);
+--signal sr_in1	  :std_logic_vector(7 DOWNTO 0);
+--signal sr_in2    : std_logic_vector(7 DOWNTO 0);
+--signal sr_in3    : std_logic_vector(7 DOWNTO 0);
+--signal sr_in4    : std_logic_vector(7 DOWNTO 0);
+--signal sr_in5    : std_logic_vector(7 DOWNTO 0);
+--signal sr_in6    : std_logic_vector(7 DOWNTO 0);
+--signal sr_in7    : std_logic_vector(7 DOWNTO 0);
+--signal sr_in8    : std_logic_vector(7 DOWNTO 0);
+--signal sr_in9    : std_logic_vector(7 DOWNTO 0);
+--signal sr_in10   : std_logic_vector(7 DOWNTO 0);
+--signal sr_in11   : std_logic_vector(7 DOWNTO 0);
+--signal sr_in12   : std_logic_vector(7 DOWNTO 0);
+--signal sr_in13   : std_logic_vector(7 DOWNTO 0);
+--signal sr_in14   : std_logic_vector(7 DOWNTO 0);
+--signal sr_in15   : std_logic_vector(7 DOWNTO 0);
+--signal sr_in16   : std_logic_vector(7 DOWNTO 0);
 
 signal shiftcount       : integer range 0 to 17;
 signal rx_empty_db      : std_logic;
@@ -119,9 +122,12 @@ signal old_shift_trig   : std_logic;
 signal uartconcat       : std_logic_vector(7 downto 0);
 
 -- Clock divider signals
-signal clk_div   : std_logic := '0';
-signal div_cnt   : integer := 0;
-constant DIV_MAX : integer := 6510;  -- Adjust this constant if needed
+signal tx_clk_div   : std_logic := '0';
+signal div_cnttx   : integer := 0;
+constant DIV_MAXtx : integer := 6510;  -- Adjust this constant if needed
+signal rx_clk_div   : std_logic := '0';
+signal div_cntrx   : integer := 0;
+constant DIV_MAXrx : integer := 814;  -- Adjust this constant if needed
 signal firstpulse: std_logic;
 
 attribute mark_debug : string; 
@@ -129,23 +135,8 @@ attribute mark_debug of rx_data     : signal is "true";
 attribute mark_debug of rx_full  : signal is "true";
 attribute mark_debug of shift_trig     : signal is "true";
 attribute mark_debug of shiftcount  : signal is "true";
-attribute mark_debug of sr_in16  : signal is "true";
-attribute mark_debug of sr_in15  : signal is "true";
-attribute mark_debug of sr_in14  : signal is "true";
-attribute mark_debug of sr_in13  : signal is "true";
-attribute mark_debug of sr_in12  : signal is "true";
-attribute mark_debug of sr_in11  : signal is "true";
-attribute mark_debug of sr_in10  : signal is "true";
-attribute mark_debug of sr_in9  : signal is "true";
-attribute mark_debug of sr_in8  : signal is "true";
-attribute mark_debug of sr_in7  : signal is "true";
-attribute mark_debug of sr_in6  : signal is "true";
-attribute mark_debug of sr_in5  : signal is "true";
-attribute mark_debug of sr_in4  : signal is "true";
-attribute mark_debug of sr_in3  : signal is "true";
-attribute mark_debug of sr_in2  : signal is "true";
-attribute mark_debug of sr_in1  : signal is "true";
-attribute mark_debug of sr_in0  : signal is "true";
+
+attribute mark_debug of sr_out : signal is "true";
 
 
 
@@ -171,11 +162,23 @@ begin
 process(iclk)
 begin
     if rising_edge(iclk) then
-        if div_cnt = DIV_MAX then
-            div_cnt <= 0;
-            clk_div <= not clk_div;  -- Toggle divided clock
+        if div_cnttx = DIV_MAXtx then
+            div_cnttx <= 0;
+            tx_clk_div <= not tx_clk_div;  -- Toggle divided clock
         else
-            div_cnt <= div_cnt + 1;
+            div_cnttx <= div_cnttx + 1;
+        end if;
+    end if;
+end process;
+
+process(iclk)
+begin
+    if rising_edge(iclk) then
+        if div_cntrx = DIV_MAXrx then
+            div_cntrx <= 0;
+            rx_clk_div <= not rx_clk_div;  -- Toggle divided clock
+        else
+            div_cntrx <= div_cntrx + 1;
         end if;
     end if;
 end process;
@@ -207,9 +210,9 @@ begin
 		shiftcount <= shiftcount + 1;
 	end if;
 	if shiftcount > 16 then
-			LCD_Data <= sr_in16 & sr_in15 & sr_in14 & sr_in13 & sr_in12 & sr_in11 & sr_in10 & sr_in9 & sr_in8 & sr_in7 & sr_in6 & sr_in5 & sr_in4 & sr_in3 & sr_in2 & sr_in1;
-			Mode <= sr_in0(6 DOWNTO 4);
-			Seven_seg <= sr_in0(7 DOWNTO 7);
+			LCD_Data <= sr_out(135 downto 8);
+			Mode <= sr_out(6 downto 4);
+			Seven_seg <= sr_out(7);
 			shiftcount <= 0;
 		end if;
 	end if;
@@ -218,13 +221,13 @@ end process;
 uart_master_inst : uart
     port map(
         reset       => reset,
-        txclk       => clk_div,
+        txclk       => tx_clk_div,
         ld_tx_data  => '1',
         tx_data     => tx_data,
         tx_enable   => tx_pulse,
         tx_out      => tx,
         tx_empty    => tx_empty,
-        rxclk       => clk_div,
+        rxclk       => rx_clk_div,
         uld_rx_data => '1',
         rx_data     => rx_data,
         rx_enable   => rx_enable,
@@ -242,156 +245,160 @@ debouncer_inst : btn_debounce_toggle
     );
 	 
 shift_register_inst0 : Shift_Reg 
+GENERIC map(
+        sr_depth => 136,  -- Depth of the shift register
+        input_width => 8  -- Width of the input data
+    ) 
 	  PORT MAP(
 	   clock => iclk,
 		reset => reset,
 		en => shift_trig, 			
 		sr_in => rx_data,
-		sr_out => sr_in0
+		sr_out => sr_out
 		);
 	  
-shift_register_inst1 : Shift_Reg 
-	  PORT MAP(
-	   clock => iclk,
-		reset => reset,
-		en => shift_trig, 			
-		sr_in => sr_in0,
-		sr_out => sr_in1
-		);
+--shift_register_inst1 : Shift_Reg 
+--	  PORT MAP(
+--	   clock => iclk,
+--		reset => reset,
+--		en => shift_trig, 			
+--		sr_in => sr_in0,
+--		sr_out => sr_in1
+--		);
 
-shift_register_inst2 : Shift_Reg 
-	  PORT MAP(
-	   clock => iclk,
-		reset => reset,
-		en => shift_trig, 			
-		sr_in => sr_in1,
-		sr_out => sr_in2
-		);
+--shift_register_inst2 : Shift_Reg 
+--	  PORT MAP(
+--	   clock => iclk,
+--		reset => reset,
+--		en => shift_trig, 			
+--		sr_in => sr_in1,
+--		sr_out => sr_in2
+--		);
 
-shift_register_inst3 : Shift_Reg 
-	  PORT MAP(
-	   clock => iclk,
-		reset => reset,
-		en => shift_trig, 			
-		sr_in => sr_in2,
-		sr_out => sr_in3
-		);
+--shift_register_inst3 : Shift_Reg 
+--	  PORT MAP(
+--	   clock => iclk,
+--		reset => reset,
+--		en => shift_trig, 			
+--		sr_in => sr_in2,
+--		sr_out => sr_in3
+--		);
 
-shift_register_inst4 : Shift_Reg 
-	  PORT MAP(
-	   clock => iclk,
-		reset => reset,
-		en => shift_trig, 			
-		sr_in => sr_in3,
-		sr_out => sr_in4
-		);
+--shift_register_inst4 : Shift_Reg 
+--	  PORT MAP(
+--	   clock => iclk,
+--		reset => reset,
+--		en => shift_trig, 			
+--		sr_in => sr_in3,
+--		sr_out => sr_in4
+--		);
 
-shift_register_inst5 : Shift_Reg 
-	  PORT MAP(
-	   clock => iclk,
-		reset => reset,
-		en => shift_trig, 			
-		sr_in => sr_in4,
-		sr_out => sr_in5
-		);		
+--shift_register_inst5 : Shift_Reg 
+--	  PORT MAP(
+--	   clock => iclk,
+--		reset => reset,
+--		en => shift_trig, 			
+--		sr_in => sr_in4,
+--		sr_out => sr_in5
+--		);		
 		
-shift_register_inst6 : Shift_Reg 
-	  PORT MAP(
-	   clock => iclk,
-		reset => reset,
-		en => shift_trig, 			
-		sr_in => sr_in5,
-		sr_out => sr_in6
-		);		
+--shift_register_inst6 : Shift_Reg 
+--	  PORT MAP(
+--	   clock => iclk,
+--		reset => reset,
+--		en => shift_trig, 			
+--		sr_in => sr_in5,
+--		sr_out => sr_in6
+--		);		
 		
-shift_register_inst7 : Shift_Reg 
-	  PORT MAP(
-	   clock => iclk,
-		reset => reset,
-		en => shift_trig, 			
-		sr_in => sr_in6,
-		sr_out => sr_in7
-		);		
+--shift_register_inst7 : Shift_Reg 
+--	  PORT MAP(
+--	   clock => iclk,
+--		reset => reset,
+--		en => shift_trig, 			
+--		sr_in => sr_in6,
+--		sr_out => sr_in7
+--		);		
 		
-shift_register_inst8 : Shift_Reg 
-	  PORT MAP(
-	   clock => iclk,
-		reset => reset,
-		en => shift_trig, 			
-		sr_in => sr_in7,
-		sr_out => sr_in8
-		);		
+--shift_register_inst8 : Shift_Reg 
+--	  PORT MAP(
+--	   clock => iclk,
+--		reset => reset,
+--		en => shift_trig, 			
+--		sr_in => sr_in7,
+--		sr_out => sr_in8
+--		);		
 		
-shift_register_inst9 : Shift_Reg 
-	  PORT MAP(
-	   clock => iclk,
-		reset => reset,
-		en => shift_trig, 			
-		sr_in => sr_in8,
-		sr_out => sr_in9
-		);		
+--shift_register_inst9 : Shift_Reg 
+--	  PORT MAP(
+--	   clock => iclk,
+--		reset => reset,
+--		en => shift_trig, 			
+--		sr_in => sr_in8,
+--		sr_out => sr_in9
+--		);		
 		
-shift_register_inst10 : Shift_Reg 
-	  PORT MAP(
-	   clock => iclk,
-		reset => reset,
-		en => shift_trig, 			
-		sr_in => sr_in9,
-		sr_out => sr_in10
-		);		
+--shift_register_inst10 : Shift_Reg 
+--	  PORT MAP(
+--	   clock => iclk,
+--		reset => reset,
+--		en => shift_trig, 			
+--		sr_in => sr_in9,
+--		sr_out => sr_in10
+--		);		
 		
-shift_register_inst11 : Shift_Reg 
-	  PORT MAP(
-	   clock => iclk,
-		reset => reset,
-		en => shift_trig, 			
-		sr_in => sr_in10,
-		sr_out => sr_in11
-		);		
+--shift_register_inst11 : Shift_Reg 
+--	  PORT MAP(
+--	   clock => iclk,
+--		reset => reset,
+--		en => shift_trig, 			
+--		sr_in => sr_in10,
+--		sr_out => sr_in11
+--		);		
 		
-shift_register_inst12 : Shift_Reg 
-	  PORT MAP(
-	   clock => iclk,
-		reset => reset,
-		en => shift_trig, 			
-		sr_in => sr_in11,
-		sr_out => sr_in12
-		);		
+--shift_register_inst12 : Shift_Reg 
+--	  PORT MAP(
+--	   clock => iclk,
+--		reset => reset,
+--		en => shift_trig, 			
+--		sr_in => sr_in11,
+--		sr_out => sr_in12
+--		);		
 		
-shift_register_inst13 : Shift_Reg 
-	  PORT MAP(
-	   clock => iclk,
-		reset => reset,
-		en => shift_trig, 			
-		sr_in => sr_in12,
-		sr_out => sr_in13
-		);		
+--shift_register_inst13 : Shift_Reg 
+--	  PORT MAP(
+--	   clock => iclk,
+--		reset => reset,
+--		en => shift_trig, 			
+--		sr_in => sr_in12,
+--		sr_out => sr_in13
+--		);		
 		
-shift_register_inst14 : Shift_Reg 
-	  PORT MAP(
-	   clock => iclk,
-		reset => reset,
-		en => shift_trig, 			
-		sr_in => sr_in13,
-		sr_out => sr_in14
-		);		
+--shift_register_inst14 : Shift_Reg 
+--	  PORT MAP(
+--	   clock => iclk,
+--		reset => reset,
+--		en => shift_trig, 			
+--		sr_in => sr_in13,
+--		sr_out => sr_in14
+--		);		
 		
-shift_register_inst15 : Shift_Reg 
-	  PORT MAP(
-	   clock => iclk,
-		reset => reset,
-		en => shift_trig, 			
-		sr_in => sr_in14,
-		sr_out => sr_in15
-		);		
+--shift_register_inst15 : Shift_Reg 
+--	  PORT MAP(
+--	   clock => iclk,
+--		reset => reset,
+--		en => shift_trig, 			
+--		sr_in => sr_in14,
+--		sr_out => sr_in15
+--		);		
 		
-shift_register_inst16 : Shift_Reg 
-	  PORT MAP(
-	   clock => iclk,
-		reset => reset,
-		en => shift_trig, 			
-		sr_in => sr_in15,
-		sr_out => sr_in16
-		);		
+--shift_register_inst16 : Shift_Reg 
+--	  PORT MAP(
+--	   clock => iclk,
+--		reset => reset,
+--		en => shift_trig, 			
+--		sr_in => sr_in15,
+--		sr_out => sr_in16
+--		);		
 	
 end Behavioral;
