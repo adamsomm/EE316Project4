@@ -130,12 +130,12 @@ begin
         elsif (rising_edge(txclk)) then
 
             if (ld_tx_data = '1') then
-                if (tx_is_empty = '0') then
-                    tx_over_run <= '0';
-                else
+--                if (tx_is_empty = '0') then
+--                    tx_over_run <= '0';
+--                else
                     tx_reg   <= tx_data;
                     tx_is_empty <= '0';
-                end if;
+--                end if;
             end if;
             if (tx_enable = '1' and tx_is_empty = '0') then
                 tx_cnt <= tx_cnt + 1;
